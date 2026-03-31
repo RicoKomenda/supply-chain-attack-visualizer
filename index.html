@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supply Chain Attack Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+/* ── Reset ─────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{font-family:'Inter',system-ui,sans-serif;background:#040c18;color:#e2e8f0;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:#00d4ff;text-decoration:none}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#07111e}
+::-webkit-scrollbar-thumb{background:#1a2e48;border-radius:3px}
+
+/* ── Header ────────────────────────────────────────────────── */
+header{background:#07111e;border-bottom:1px solid rgba(0,212,255,0.12);position:relative}
+header::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#ff4757 0%,#ff6b35 25%,#9d4edd 50%,#00d4ff 75%,#00e676 100%)}
+.hdr{max-width:1440px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.hdr-title{flex:1;min-width:220px}
+.hdr-badge{display:inline-flex;align-items:center;gap:5px;border-radius:4px;padding:2px 8px;font-size:.68rem;font-weight:700;letter-spacing:.1em;margin-bottom:5px}
+.hdr-badge::before{content:'';width:6px;height:6px;border-radius:50%;animation:blink 2s ease infinite}
+.badge-critical{background:rgba(255,71,87,.15);color:#ff4757;border:1px solid rgba(255,71,87,.3)}
+.badge-critical::before{background:#ff4757}
+.badge-related{background:rgba(255,107,53,.15);color:#ff6b35;border:1px solid rgba(255,107,53,.3)}
+.badge-related::before{background:#ff6b35}
+.badge-worm{background:rgba(0,230,118,.12);color:#00e676;border:1px solid rgba(0,230,118,.25)}
+.badge-worm::before{background:#00e676}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+h1{font-size:clamp(1rem,2.5vw,1.4rem);font-weight:800;line-height:1.2;letter-spacing:-.02em}
+.hdr-sub{font-size:.75rem;color:#8892a4;margin-top:3px}
+.hdr-stats{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.stat{text-align:center}
+.stat-val{display:block;font-size:1.3rem;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1;color:#00d4ff}
+.stat-val.red{color:#ff4757}.stat-val.purple{color:#9d4edd}.stat-val.green{color:#00e676}.stat-val.orange{color:#ff6b35}
+.stat-lbl{font-size:.6rem;color:#4a5a72;text-transform:uppercase;letter-spacing:.08em}
+.hdr-meta{font-size:.72rem;color:#4a5a72;font-family:'JetBrains Mono',monospace;line-height:1.8}
+.hdr-meta span{display:block}
+.hdr-meta .cve{color:#ffb300}
+.hdr-meta .actor{color:#9d4edd}
+
+/* ── Incident switcher ─────────────────────────────────────── */
+.inc-switcher{display:flex;flex-direction:column;gap:6px;margin-left:auto}
+.inc-switcher-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#4a5a72}
+.inc-btns{display:flex;gap:6px;flex-wrap:wrap}
+.inc-btn{padding:6px 12px;font-size:.75rem;font-weight:600;border-radius:6px;cursor:pointer;transition:all .15s;border:1px solid rgba(255,255,255,.1);background:transparent;color:#4a5a72;font-family:'Inter',sans-serif;white-space:nowrap}
+.inc-btn:hover{color:#e2e8f0;border-color:rgba(255,255,255,.2)}
+.inc-btn.active{background:rgba(0,212,255,.1);color:#00d4ff;border-color:rgba(0,212,255,.35)}
+.inc-btn.related-active{background:rgba(255,107,53,.1);color:#ff6b35;border-color:rgba(255,107,53,.35)}
+.inc-btn.worm-active{background:rgba(0,230,118,.1);color:#00e676;border-color:rgba(0,230,118,.3)}
+
+/* ── Section labels ────────────────────────────────────────── */
+.sec-label{font-size:.65rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#00d4ff;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.sec-label::after{content:'';flex:1;height:1px;background:rgba(0,212,255,.1)}
+
+/* ── Attack flow ───────────────────────────────────────────── */
+.flow-section{max-width:1440px;margin:0 auto;padding:18px 24px 0}
+.flow-wrap{background:#07111e;border:1px solid rgba(0,212,255,.1);border-radius:10px;overflow:hidden;position:relative}
+.flow-controls{position:absolute;top:10px;right:12px;display:flex;gap:5px;z-index:10}
+.fc-btn{width:26px;height:26px;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:rgba(4,12,24,.8);color:#8892a4;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:inherit}
+.fc-btn:hover{color:#00d4ff;border-color:rgba(0,212,255,.3)}
+.zoom-level{font-size:.65rem;font-family:'JetBrains Mono',monospace;color:#4a5a72;display:flex;align-items:center;padding:0 5px}
+#flow-svg{display:block;width:100%;cursor:grab;user-select:none;touch-action:none;overscroll-behavior:none}
+#flow-svg:active{cursor:grabbing}
+.flow-node{cursor:pointer}
+.flow-node .nb{transition:filter .15s}
+.flow-node:hover .nb{filter:brightness(1.4)}
+.flow-node.selected .nb{filter:brightness(1.6)}
+.flow-node .nbg{transition:opacity .15s;opacity:0}
+.flow-node:hover .nbg,.flow-node.selected .nbg{opacity:1}
+
+/* ── Detail panel ──────────────────────────────────────────── */
+.detail-outer{max-width:1440px;margin:0 auto;padding:0 24px}
+#detail-panel{background:#0b1929;border:1px solid rgba(0,212,255,.2);border-radius:10px;margin-top:10px;overflow:hidden;max-height:0;transition:max-height .3s ease,border-color .3s ease;position:relative}
+#detail-panel.open{max-height:360px;border-color:rgba(0,212,255,.35)}
+.detail-inner{padding:18px 22px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+@media(max-width:700px){.detail-inner{grid-template-columns:1fr}}
+.dp-phase{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+.dp-title{font-size:.95rem;font-weight:700;margin-bottom:7px}
+.dp-desc{font-size:.78rem;color:#8892a4;line-height:1.65}
+.dp-mitre{font-size:.7rem;color:#00d4ff;font-family:'JetBrains Mono',monospace;margin-top:9px;line-height:1.6}
+.dp-col-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#4a5a72;margin-bottom:7px}
+.dp-item{font-size:.75rem;color:#8892a4;font-family:'JetBrains Mono',monospace;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.dp-item:last-child{border:none}
+.dp-item strong{color:#e2e8f0;font-weight:600}
+#detail-close{position:absolute;right:16px;top:14px;background:none;border:none;cursor:pointer;color:#4a5a72;font-size:1rem;transition:color .15s}
+#detail-close:hover{color:#e2e8f0}
+
+/* ── Bottom grid ───────────────────────────────────────────── */
+.bottom-grid{max-width:1440px;margin:0 auto;padding:14px 24px;display:grid;grid-template-columns:1fr 1.4fr;gap:14px}
+@media(max-width:900px){.bottom-grid{grid-template-columns:1fr}}
+.panel{background:#07111e;border:1px solid rgba(0,212,255,.1);border-radius:10px;padding:16px 18px}
+
+/* Timeline */
+.tl-item{display:grid;grid-template-columns:76px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.77rem}
+.tl-item:last-child{border:none}
+.tl-date{font-family:'JetBrains Mono',monospace;color:#4a5a72;font-size:.7rem;padding-top:1px}
+.tl-event{color:#8892a4;line-height:1.5}
+.tl-event strong{color:#e2e8f0}
+.wave{display:inline-block;font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:3px;margin-right:4px;vertical-align:middle}
+.w1{background:rgba(255,107,53,.15);color:#ff6b35}
+.w2{background:rgba(157,78,221,.15);color:#9d4edd}
+.w3{background:rgba(0,212,255,.1);color:#00d4ff}
+
+/* IOC tabs */
+.ioc-tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.ioc-tab{padding:4px 10px;font-size:.7rem;font-weight:600;border-radius:4px;cursor:pointer;transition:all .15s;background:transparent;border:1px solid rgba(255,255,255,.08);color:#4a5a72;font-family:'Inter',sans-serif}
+.ioc-tab.active{background:rgba(0,212,255,.1);color:#00d4ff;border-color:rgba(0,212,255,.3)}
+.ioc-pane{display:none}
+.ioc-pane.active{display:block}
+.ioc-row{display:grid;grid-template-columns:1fr auto;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;align-items:start}
+.ioc-row:last-child{border:none}
+.ioc-val{font-family:'JetBrains Mono',monospace;word-break:break-all}
+.ioc-val.domain{color:#ff4757}.ioc-val.ip{color:#ff6b35}.ioc-val.file{color:#ffb300}.ioc-val.pkg{color:#9d4edd}
+.ioc-note{color:#4a5a72;font-size:.68rem;line-height:1.4;margin-top:2px}
+.ioc-badge{font-size:.58rem;font-weight:700;padding:2px 6px;border-radius:3px;white-space:nowrap;align-self:center;text-align:center}
+.ioc-badge.c2{background:rgba(255,71,87,.15);color:#ff4757}
+.ioc-badge.persistence{background:rgba(0,212,255,.1);color:#00d4ff}
+.ioc-badge.dropper{background:rgba(255,179,0,.1);color:#ffb300}
+.ioc-badge.payload{background:rgba(157,78,221,.1);color:#9d4edd}
+.ioc-badge.exfil{background:rgba(0,230,118,.1);color:#00e676}
+.ioc-badge.worm{background:rgba(255,107,53,.15);color:#ff6b35}
+.ioc-badge.rat{background:rgba(255,71,87,.12);color:#ff7088}
+
+/* ── References section ────────────────────────────────────── */
+.refs-section{max-width:1440px;margin:0 auto;padding:14px 24px}
+.refs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.ref-card{background:#07111e;border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:12px 14px;transition:border-color .15s,background .15s}
+.ref-card:hover{border-color:rgba(0,212,255,.2);background:#091420}
+.ref-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+.ref-source{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#4a5a72}
+.ref-cred{font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:3px}
+.ref-cred.confirmed{background:rgba(0,230,118,.1);color:#00e676}
+.ref-cred.high{background:rgba(0,212,255,.1);color:#00d4ff}
+.ref-cred.medium{background:rgba(255,179,0,.1);color:#ffb300}
+.ref-title{font-size:.78rem;font-weight:600;color:#c0cae0;line-height:1.4}
+.ref-title a{color:inherit;transition:color .15s}
+.ref-title a:hover{color:#00d4ff}
+.ref-note{font-size:.7rem;color:#4a5a72;margin-top:4px;line-height:1.4}
+
+/* ── Footer ────────────────────────────────────────────────── */
+footer{border-top:1px solid rgba(255,255,255,.05);padding:12px 24px;max-width:1440px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.footer-copy{font-size:.68rem;color:#2a3a52}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="hdr">
+    <div class="hdr-title">
+      <div id="hdr-badge" class="hdr-badge badge-critical">CRITICAL · CVE-2026-33634 · CVSS 9.4</div>
+      <h1 id="hdr-title">TeamPCP Five-Day Siege</h1>
+      <div id="hdr-sub" class="hdr-sub">Multi-Stage Supply Chain Attack · Trivy → KICS → LiteLLM → npm</div>
+    </div>
+    <div id="hdr-stats" class="hdr-stats"></div>
+    <div id="hdr-meta" class="hdr-meta"></div>
+    <div class="inc-switcher">
+      <div class="inc-switcher-label">Incident</div>
+      <div class="inc-btns" id="inc-btns"></div>
+    </div>
+  </div>
+</header>
+
+<div class="flow-section">
+  <div class="sec-label">Attack Flow — wheel to zoom · drag to pan · click node for details</div>
+  <div class="flow-wrap">
+    <div class="flow-controls">
+      <button class="fc-btn" id="zoom-in" title="Zoom in">+</button>
+      <div class="zoom-level" id="zoom-level">100%</div>
+      <button class="fc-btn" id="zoom-out" title="Zoom out">−</button>
+      <button class="fc-btn" id="zoom-reset" title="Reset view">⟲</button>
+    </div>
+    <svg id="flow-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+</div>
+
+<div class="detail-outer">
+  <div id="detail-panel">
+    <button id="detail-close">✕</button>
+    <div id="detail-inner" class="detail-inner"></div>
+  </div>
+</div>
+
+<div class="bottom-grid">
+  <div class="panel">
+    <div class="sec-label">Event Timeline</div>
+    <div id="timeline"></div>
+  </div>
+  <div class="panel">
+    <div class="sec-label">Indicators of Compromise</div>
+    <div class="ioc-tabs" id="ioc-tabs"></div>
+    <div id="ioc-body"></div>
+  </div>
+</div>
+
+<div class="refs-section">
+  <div class="sec-label">Sources &amp; References</div>
+  <div class="refs-grid" id="refs-grid"></div>
+</div>
+
+<footer>
+  <div class="footer-copy">Supply Chain Attack Visualizer · open source · data from public research</div>
+</footer>
+
+<script>
+/* ============================================================
+   INCIDENT DATA
+   ============================================================ */
+const PC = {
+  actor:    {bg:'#1a0a00',stroke:'#ff6b35',text:'#ff8c5a',lbl:'Threat Actor'},
+  initial:  {bg:'#1a1000',stroke:'#ff6b35',text:'#ff8c5a',lbl:'Initial Access'},
+  compromise:{bg:'#1a0808',stroke:'#ff4757',text:'#ff6575',lbl:'Compromise'},
+  harvest:  {bg:'#100818',stroke:'#9d4edd',text:'#b87aee',lbl:'Credential Theft'},
+  weapon:   {bg:'#0e0a1a',stroke:'#8b4fcc',text:'#a870e0',lbl:'Weaponization'},
+  exec:     {bg:'#141000',stroke:'#ffb300',text:'#ffd040',lbl:'Execution'},
+  persist:  {bg:'#001416',stroke:'#00d4ff',text:'#40e0ff',lbl:'Persistence'},
+  c2:       {bg:'#001408',stroke:'#00e676',text:'#40ffaa',lbl:'Exfiltration'},
+  staging:  {bg:'#1a0808',stroke:'#ff6b35',text:'#ff8c5a',lbl:'Pre-Staging'},
+  acccomp:  {bg:'#1a0808',stroke:'#ff4757',text:'#ff6575',lbl:'Account Compromise'},
+  payload:  {bg:'#141000',stroke:'#ffb300',text:'#ffd040',lbl:'Payload Drop'},
+  rat:      {bg:'#100818',stroke:'#9d4edd',text:'#b87aee',lbl:'RAT'},
+};
+
+const INCIDENTS = {
+  teampcap: {
+    meta: {
+      badgeClass: 'badge-critical',
+      badge: 'CRITICAL · CVE-2026-33634 · CVSS 9.4',
+      btnLabel: 'TeamPCP · Five-Day Siege',
+      btnActiveClass: 'inc-btn active',
+      title: 'TeamPCP Five-Day Siege',
+      sub: 'Multi-Stage Supply Chain Attack · Trivy → KICS → LiteLLM → npm',
+      stats: [
+        {val:'5',cls:'',lbl:'Days'},
+        {val:'3',cls:'red',lbl:'Waves'},
+        {val:'66+',cls:'purple',lbl:'npm pkgs'},
+        {val:'300GB',cls:'',lbl:'Stolen'},
+        {val:'1,000+',cls:'green',lbl:'SaaS envs'},
+      ],
+      meta: ['Mar 19 – 24, 2026','actor:TeamPCP · LAPSUS$','cve:CVE-2026-33634 · GHSA-69fq-xp46-6x23'],
+    },
+    nodes: [
+      {id:'actor',   label:'TeamPCP',            sub:'hackerbot-claw / openclaw',    phase:'actor',    col:0,  row:1,
+       title:'TeamPCP — Threat Actor',
+       desc:'Cloud-native cybercriminal group active since Dec 2025. Operates Telegram channels (@Persy_PCP, @teampcp). Built AI-assisted recon tool "hackerbot-claw / openclaw". Collaborated with LAPSUS$ for extortion of ~300 GB stolen data.',
+       details:[{k:'Aliases',v:'PCPcat · Persy_PCP · ShellForce · DeadCatx3 · CipherForce'},{k:'Active since',v:'December 2025'},{k:'Tooling',v:'hackerbot-claw (AI recon), Havoc C2, AdaptixC2'},{k:'Partner',v:'LAPSUS$ (extortion, data processing)'}],
+       iocs:[],mitre:'G-TEAMPCAP (threat group)'},
+
+      {id:'prt',     label:'pull_request_target', sub:'GitHub Actions exploit',       phase:'initial',  col:1,  row:0,
+       title:'pull_request_target Exploit',
+       desc:'hackerbot-claw exploited a pull_request_target workflow trigger — runs in the BASE repo context with full secrets access even from a fork PR. A malicious PR injecting curl … | bash extracted the aqua-bot ORG_REPO_TOKEN. Account created Feb 20; exploit fired Feb 28.',
+       details:[{k:'Trigger',v:'pull_request_target from fork PR'},{k:'Target',v:'aquasecurity/trivy'},{k:'Account',v:'hackerbot-claw (created Feb 20 2026)'},{k:'Token extracted',v:'aqua-bot ORG_REPO_TOKEN (admin scope, 33+ repos)'}],
+       iocs:[],mitre:'T1195.001 — Supply Chain Compromise\nT1552.001 — Credentials in CI Secrets'},
+
+      {id:'aquabot', label:'aqua-bot PAT',         sub:'Admin token, 33+ repos',      phase:'initial',  col:1,  row:2,
+       title:'aqua-bot PAT Stolen',
+       desc:'The aqua-bot GitHub service account held admin-level access across all 33+ Aqua Security repos. When Aqua attempted credential rotation on Mar 1, the rotation was non-atomic — the attacker captured refreshed tokens mid-rotation and retained full access.',
+       details:[{k:'Scope',v:'Admin across 33+ Aqua Security repos'},{k:'Rotation attempt',v:'Mar 1 — non-atomic, token re-captured'},{k:'Used for',v:'Force-push tag rewrites, binary publish, repo deface'},{k:'Deface',v:'44 repos renamed tpcp-docs-* ("TeamPCP Owns Aqua Security")'}],
+       iocs:[],mitre:'T1098 — Account Manipulation'},
+
+      {id:'tagtrivy',label:'trivy-action tags',    sub:'75/76 versions poisoned',     phase:'compromise',col:2,  row:0,
+       title:'trivy-action Tag Poisoning',
+       desc:'75 of 76 version tags (v0.0.1 – v0.34.2) and all 7 setup-trivy tags were force-pushed to malicious commits that spoofed original author names, timestamps, and commit messages. The poisoned entrypoint.sh downloaded backdoored Trivy sources. Exposure window: ~12 hours for trivy-action, ~4 hours for setup-trivy.',
+       details:[{k:'trivy-action tags',v:'75 of 76 versions poisoned'},{k:'setup-trivy tags',v:'All 7 versions poisoned'},{k:'Spoofing',v:'Author names (DmitriyLewen, rauchg), timestamps, messages'},{k:'Forensic tell',v:'Unsigned commits — originals were GPG-signed via GitHub merge'}],
+       iocs:[],mitre:'T1195.001 — Supply Chain Compromise: Dev Tools'},
+
+      {id:'tagkics', label:'KICS + Checkmarx',     sub:'35 tags · Mar 23 · OpenVSX', phase:'compromise',col:2,  row:2,
+       title:'KICS GitHub Action Compromise',
+       desc:'All 35 tags of Checkmarx/kics-github-action and Checkmarx/ast-github-action were force-pushed using the compromised cx-plugins-releases service account (GitHub ID 225848595) on Mar 23, 12:58–16:50 UTC. Additionally, Checkmarx VS Code extensions (checkmarx.ast-results v2.53.0 and checkmarx.cx-dev-assist v1.7.0) were published maliciously to OpenVSX.',
+       details:[{k:'KICS tags poisoned',v:'All 35 · cx-plugins-releases account'},{k:'Window',v:'Mar 23, 12:58–16:50 UTC'},{k:'OpenVSX',v:'checkmarx.ast-results v2.53.0 · checkmarx.cx-dev-assist v1.7.0'},{k:'New C2',v:'checkmarx[.]zone activated same day'}],
+       iocs:['checkmarx[.]zone'],mitre:'T1195.001 — Supply Chain Compromise'},
+
+      {id:'binary',  label:'trivy v0.69.4 binary', sub:'Backdoored release, 4 registries',phase:'compromise',col:3,row:0,
+       title:'Malicious Trivy Binary (v0.69.4)',
+       desc:'The release build script fetched 4 backdoored Go source files from scan.aquasecurtiy[.]org/static — main.go, scand.go, fork_unix.go, fork_windows.go — injected before compilation. Produced normal Trivy scan output to avoid detection. Published to GitHub Releases, Docker Hub, GHCR, ECR. Malicious tags v0.69.5 and v0.69.6 also pushed during eviction window.',
+       details:[{k:'SHA-256 Linux/amd64',v:'822dd269ec10459…'},{k:'SHA-256 macOS/arm64',v:'6328a34b26a634…'},{k:'SHA-256 Win/amd64',v:'0880819ef821cf…'},{k:'Published to',v:'GitHub Releases · Docker Hub · GHCR · ECR'}],
+       iocs:['scan.aquasecurtiy[.]org'],mitre:'T1195.002 — Supply Chain\nT1027 — Obfuscated Files'},
+
+      {id:'ci',      label:'Victim CI/CD',          sub:'/proc/*/mem scrape',          phase:'harvest',  col:3,  row:2,
+       title:'CI/CD Pipeline Memory Scrape',
+       desc:'The malicious Trivy binary scraped /proc/*/mem of Runner.Worker processes, extracting secrets stored as {"value":"<secret>","isSecret":true}. Also swept 50+ filesystem paths and queried AWS IMDS (169.254.169.254). SANS estimates 10,000+ CI/CD workflows affected.',
+       details:[{k:'Technique',v:'/proc/*/mem process memory read'},{k:'Secret pattern',v:'{"value":"…","isSecret":true}'},{k:'Cloud IMDS',v:'AWS 169.254.169.254 for IAM creds'},{k:'Scope',v:'10,000+ CI/CD workflows (SANS estimate)'}],
+       iocs:[],mitre:'T1552.004 — Private Keys\nT1552.007 — Container API'},
+
+      {id:'creds',   label:'Secrets Stolen',         sub:'PYPI_PUBLISH · npm tokens · SSH',phase:'harvest',col:4,row:0,
+       title:'Credential Harvest from Runner Memory',
+       desc:'Harvested tokens enabled all downstream poisoning. The PYPI_PUBLISH token was extracted from LiteLLM\'s own CI run of the poisoned Trivy action. npm tokens from other victim pipelines enabled CanisterWorm propagation.',
+       details:[{k:'PYPI_PUBLISH',v:'From LiteLLM CI → enables litellm package poisoning'},{k:'npm tokens',v:'From victim CIs → enables CanisterWorm propagation'},{k:'GITHUB_TOKEN',v:'Used for tpcp-docs fallback exfil repos'},{k:'Cloud creds',v:'AWS/GCP/Azure IAM creds, service account keys'}],
+       iocs:[],mitre:'T1552.001 — Credentials in Files\nT1550.001 — Application Access Token'},
+
+      {id:'litellm', label:'litellm 1.82.7 / 1.82.8',sub:'Backdoored PyPI packages',  phase:'weapon',   col:4,  row:2,
+       title:'LiteLLM PyPI Supply Chain Poisoning',
+       desc:'v1.82.8 added litellm_init.pth (34,628 bytes) — triggers on every Python interpreter startup via site.py, before any user code runs. v1.82.7 injected base64-encoded payload into proxy_server.py line 128, executing on import. RECORD checksums regenerated to pass wheel integrity. A forking bug in the .pth caused exponential re-triggering (fork bomb), crashing machines and triggering discovery.',
+       details:[{k:'v1.82.8 trigger',v:'litellm_init.pth — every Python startup (site.py)'},{k:'v1.82.7 trigger',v:'proxy_server.py line 128 — on import litellm'},{k:'Exposure window',v:'~3 hours (10:39–~13:xx UTC Mar 24)'},{k:'Monthly downloads',v:'~97M / ~3.5M daily'}],
+       iocs:['litellm==1.82.7','litellm==1.82.8','litellm_init.pth'],mitre:'T1195.002 — Supply Chain\nT1546.016 — .pth installer hook'},
+
+      {id:'canister', label:'CanisterWorm',          sub:'66+ npm pkgs · ICP blockchain',phase:'weapon',  col:5,  row:0,
+       title:'CanisterWorm — First ICP-C2 npm Worm',
+       desc:'Self-propagating worm deployed via stolen npm tokens. Injected postinstall hooks across 66+ npm packages (135+ artifacts), primarily @emilgroup (28+) and @teale.io/eslint-config. deploy.js enumerated victim\'s accessible packages and republished malicious versions tagged "latest". First documented npm worm using ICP blockchain as C2 — decentralized, cannot be taken down.',
+       details:[{k:'Packages',v:'66+ · 135+ malicious artifacts'},{k:'Scopes',v:'@emilgroup (28+), @teale.io, others'},{k:'Mechanism',v:'postinstall → index.js → pgmon.service'},{k:'C2',v:'tdtqy-oyaaa-aaaae-af2dq-cai.raw.icp0.io'}],
+       iocs:['tdtqy-oyaaa-aaaae-af2dq-cai.raw.icp0[.]io'],mitre:'T1195.001 — Supply Chain\nT1059.007 — JavaScript'},
+
+      {id:'exec',    label:'L1/L2 Staged Payload',   sub:'.pth hook · proxy_server.py', phase:'exec',    col:5,  row:2,
+       title:'Staged Payload Execution',
+       desc:'Layer 1 (orchestrator): holds hardcoded RSA-4096 public key, decodes and runs Layer 2. Layer 2 (harvester): sweeps host for AI keys, cloud creds, SSH keys, .env files, shell history, K8s tokens, crypto wallets. Encrypts with AES-256-CBC + RSA-OAEP key wrap. Same RSA key across all three TeamPCP campaigns (Trivy, KICS, LiteLLM) — primary attribution marker.',
+       details:[{k:'L1',v:'Orchestrator — RSA-4096 key, executes L2'},{k:'L2 sweep',v:'AI keys · AWS/GCP/Azure · SSH · .kube · .env · shell history'},{k:'Encryption',v:'AES-256-CBC (data) + RSA-OAEP 4096-bit (session key)'},{k:'Fork bomb bug',v:'.pth re-triggered exponentially → machine crash → discovery'}],
+       iocs:['litellm_init.pth','sysmon.py'],mitre:'T1059.006 — Python\nT1140 — Deobfuscate Files'},
+
+      {id:'persist', label:'sysmon.service',         sub:'pgmon.service · K8s wiper',   phase:'persist',  col:6,  row:0,
+       title:'Persistence — Systemd + Kubernetes',
+       desc:'sysmon.service ("System Telemetry Service") polls checkmarx[.]zone/raw every 50 min for a payload URL. Kill switch: skips if response contains "youtube" — C2 was serving "The Show Must Go On" by Queen at time of disclosure. pgmon.service deployed by CanisterWorm npm path. K8s: deploys privileged node-setup-* pods in kube-system mounting host root. If Tehran TZ or Farsi detected: deploys "kamikaze" DaemonSet that wipes host filesystem.',
+       details:[{k:'sysmon.service',v:'"System Telemetry Service" · polls every 50 min'},{k:'pgmon.service',v:'npm CanisterWorm path · mimics PostgreSQL monitor'},{k:'Kill switch',v:'Skip if response contains "youtube"'},{k:'K8s wiper',v:'kamikaze DaemonSet targets IR timezone / Farsi locale'}],
+       iocs:['sysmon.service','pgmon.service','node-setup-*'],mitre:'T1543.002 — Systemd Service\nT1610 — Deploy Container'},
+
+      {id:'c2',      label:'C2 Exfiltration',         sub:'tpcp.tar.gz · 3 domains · fallback',phase:'c2',col:6,row:2,
+       title:'Dual-Path C2 Exfiltration',
+       desc:'Primary: POST tpcp.tar.gz to C2 with header X-Filename: tpcp.tar.gz. Fallback: create tpcp-docs repo in victim GitHub org using GITHUB_TOKEN, upload encrypted bundle as release asset. LiteLLM\'s request/response pipeline hooked to silently forward all AI prompts/responses to C2. Telnyx follow-on (Mar 27): WAV steganography (XOR-encrypted payload in 16-byte audio frames).',
+       details:[{k:'Bundle',v:'tpcp.tar.gz — AES-256-CBC + RSA-4096 key wrap'},{k:'HTTP header',v:'X-Filename: tpcp.tar.gz'},{k:'Fallback',v:'tpcp-docs / docs-tpcp repo in victim GitHub org'},{k:'AI traffic',v:'LiteLLM prompt+response content forwarded to C2'}],
+       iocs:['models.litellm[.]cloud','scan.aquasecurtiy[.]org','45.148.10.212'],mitre:'T1041 — Exfil over C2\nT1537 — Transfer to Cloud Account'},
+    ],
+    edges:[
+      {from:'actor',   to:'prt',      label:'exploits'},
+      {from:'actor',   to:'aquabot',  label:'steals'},
+      {from:'prt',     to:'aquabot',  label:''},
+      {from:'aquabot', to:'tagtrivy', label:'force-pushes'},
+      {from:'aquabot', to:'tagkics',  label:'poisons'},
+      {from:'tagtrivy',to:'binary',   label:'delivers'},
+      {from:'tagtrivy',to:'ci',       label:'runs in'},
+      {from:'tagkics', to:'ci',       label:'runs in'},
+      {from:'binary',  to:'ci',       label:''},
+      {from:'ci',      to:'creds',    label:'extracts'},
+      {from:'creds',   to:'litellm',  label:'PYPI token'},
+      {from:'creds',   to:'canister', label:'npm tokens'},
+      {from:'litellm', to:'exec',     label:'triggers'},
+      {from:'canister',to:'exec',     label:'postinstall'},
+      {from:'exec',    to:'persist',  label:'installs'},
+      {from:'exec',    to:'c2',       label:'bundles'},
+      {from:'persist', to:'c2',       label:'polls'},
+    ],
+    timeline:[
+      {date:'Feb 20',  wave:0, text:'<strong>hackerbot-claw</strong> GitHub account created; systematic CI/CD scanning begins'},
+      {date:'Feb 28',  wave:1, text:'<strong>pull_request_target</strong> exploit fires on aquasecurity/trivy — aqua-bot PAT stolen'},
+      {date:'Mar 1',   wave:1, text:'Aqua rotates credentials — non-atomic rotation, attacker recaptures refreshed tokens mid-rotation'},
+      {date:'Mar 16',  wave:1, text:'Staging of malicious commits using retained aqua-bot credentials begins'},
+      {date:'Mar 19',  wave:1, text:'<strong>trivy-action</strong> (75/76 tags) and <strong>setup-trivy</strong> (7/7 tags) force-pushed; malicious trivy v0.69.4 published to 4 registries; 44 repos defaced'},
+      {date:'Mar 20',  wave:1, text:'<strong>CanisterWorm</strong> deployed via stolen npm tokens — 66+ packages, 135+ artifacts, ICP blockchain C2'},
+      {date:'Mar 22',  wave:1, text:'Argon-DevOps-Mgt account used to deface aquasec-com internal GitHub org'},
+      {date:'Mar 23',  wave:2, text:'<strong>KICS</strong> all 35 tags compromised (cx-plugins-releases account); <strong>checkmarx[.]zone</strong> C2 activated; OpenVSX extensions poisoned'},
+      {date:'Mar 24 10:39',wave:2, text:'<strong>litellm 1.82.7</strong> published to PyPI using stolen PYPI_PUBLISH token'},
+      {date:'Mar 24 10:52',wave:2, text:'<strong>litellm 1.82.8</strong> published — adds .pth interpreter startup hook; fork-bomb bug causes crashes'},
+      {date:'Mar 24 12:44',wave:2, text:'Issue #24512 opened on litellm — suppressed by 88 bot comments from 73 accounts in 102 seconds; compromised maintainer account closes issue'},
+      {date:'Mar 24 ~16:00',wave:2, text:'Malicious litellm versions removed from PyPI (~3h exposure). Microsoft publishes guidance.'},
+      {date:'Mar 25',  wave:3, text:'TeamPCP pivots to extortion with LAPSUS$ — processing ~300 GB stolen credentials'},
+      {date:'Mar 27',  wave:3, text:'<strong>Telnyx 4.87.1/4.87.2</strong> compromised — WAV steganography (XOR key per 16-byte audio frame)'},
+    ],
+    iocs:{
+      domains:[
+        {val:'scan.aquasecurtiy[.]org',badge:'c2',note:'Trivy C2 · typosquat · served backdoored Go sources · resolves to 45.148.10.212'},
+        {val:'models.litellm[.]cloud', badge:'c2',note:'LiteLLM exfil endpoint · active 48h window Mar 24–25 · registered Mar 23'},
+        {val:'checkmarx[.]zone',       badge:'c2',note:'KICS C2 + sysmon.py polling · AdaptixC2 framework · impersonates Checkmarx'},
+        {val:'tdtqy-oyaaa-aaaae-af2dq-cai.raw.icp0[.]io',badge:'c2',note:'CanisterWorm ICP blockchain C2 · decentralized · cannot be taken down via registrar'},
+      ],
+      ips:[
+        {val:'45.148.10.212',  badge:'c2',note:'Havoc C2 · TECHOFF SRV LIMITED / AS48090 Netherlands · first seen Nov 2025'},
+        {val:'83.142.209.11',  badge:'c2',note:'AdaptixC2 · Ghosty Networks LLC / AS205759 Luxembourg · port 4433'},
+        {val:'46.151.182.203', badge:'c2',note:'Backup exfil · Ghosty Networks LLC · TLS cert CN: models.litellm.cloud'},
+        {val:'83.142.209.203', badge:'c2',note:'Telnyx stage 2 · port 8080 · serves ringtone.wav (XOR-encrypted payload)'},
+      ],
+      files:[
+        {val:'litellm_init.pth', badge:'dropper',  note:'34,628 bytes · triggers on every Python startup via site.py · litellm 1.82.8'},
+        {val:'sysmon.py',        badge:'payload',  note:'C2 polling backdoor · polls checkmarx[.]zone/raw every 50 min · kill switch: "youtube"'},
+        {val:'sysmon.service',   badge:'persistence',note:'"System Telemetry Service" · ~/.config/systemd/user/ · Restart=always'},
+        {val:'pgmon.service',    badge:'persistence',note:'CanisterWorm path · mimics PostgreSQL monitor · ~/.config/systemd/user/'},
+        {val:'tpcp.tar.gz',      badge:'exfil',    note:'AES-256-CBC encrypted, RSA-OAEP 4096-bit key-wrapped · X-Filename header'},
+        {val:'ringtone.wav',     badge:'payload',  note:'Telnyx stage 2 · XOR-encrypted payload in WAV frames (8B data + 8B key per 16B)'},
+      ],
+      packages:[
+        {val:'litellm==1.82.7', badge:'worm',note:'PyPI · proxy_server.py injection · triggers on import · ~3h exposure'},
+        {val:'litellm==1.82.8', badge:'worm',note:'PyPI · litellm_init.pth startup hook · fork-bomb bug → discovery'},
+        {val:'telnyx==4.87.1',  badge:'worm',note:'PyPI · WAV steganography stage 2 · 742K+ downloads baseline'},
+        {val:'telnyx==4.87.2',  badge:'worm',note:'PyPI · same WAV steganography mechanism'},
+        {val:'@emilgroup/* (28+)',badge:'worm',note:'npm CanisterWorm · ICP blockchain C2'},
+      ],
+      k8s:[
+        {val:'node-setup-*',           badge:'payload',    note:'Privileged pods in kube-system · mounts host root (/) · installs sysmon.service on each node'},
+        {val:'host-provisioner-iran',  badge:'payload',    note:'"kamikaze" container — detects Tehran TZ / Farsi locale → wipes host FS, force-reboots all nodes'},
+        {val:'tpcp-docs / docs-tpcp',  badge:'exfil',      note:'Fallback: repo created in victim GitHub org via GITHUB_TOKEN · tpcp.tar.gz as release asset'},
+      ],
+    },
+    refs:[
+      {source:'Wiz',       cred:'confirmed', title:'Trivy Compromised by TeamPCP',                     url:'https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack',                              note:'Primary technical report on the Trivy/GitHub Actions phase'},
+      {source:'Wiz',       cred:'confirmed', title:"Three's a Crowd: TeamPCP Trojanizes LiteLLM",       url:'https://www.wiz.io/blog/threes-a-crowd-teampcp-trojanizes-litellm-in-continuation-of-campaign',    note:'LiteLLM PyPI poisoning analysis with payload architecture'},
+      {source:'Wiz',       cred:'confirmed', title:'TeamPCP Attacks KICS GitHub Action',                url:'https://www.wiz.io/blog/teampcp-attack-kics-github-action',                                        note:'KICS and Checkmarx compromise details'},
+      {source:'Datadog',   cred:'high',      title:'LiteLLM & Telnyx — TeamPCP Supply Chain Campaign', url:'https://securitylabs.datadoghq.com/articles/litellm-compromised-pypi-teampcp-supply-chain-campaign/',note:'Telnyx WAV steganography payload analysis'},
+      {source:'Socket',    cred:'high',      title:'CanisterWorm npm Publisher Compromise',             url:'https://socket.dev/blog/canisterworm-npm-publisher-compromise-deploys-backdoor-across-29-packages', note:'First ICP blockchain C2 npm worm technical breakdown'},
+      {source:'Sysdig',    cred:'high',      title:'TeamPCP Expands to Checkmarx GitHub Actions',       url:'https://www.sysdig.com/blog/teampcp-expands-supply-chain-compromise-spreads-from-trivy-to-checkmarx-github-actions', note:'Checkmarx KICS + sysdig TRT analysis'},
+      {source:'StepSecurity',cred:'high',   title:'Trivy Compromised a Second Time',                   url:'https://www.stepsecurity.io/blog/trivy-compromised-a-second-time---malicious-v0.69.4-release',      note:'v0.69.4 binary analysis and detection guidance'},
+      {source:'ramimac.me', cred:'high',    title:'TeamPCP Campaign IOC List',                         url:'https://ramimac.me/teampcp/',                                                                        note:'Consolidated IOC reference list'},
+    ],
+  },
+
+  axios: {
+    meta: {
+      badgeClass: 'badge-related',
+      badge: 'RELATED CAMPAIGN · GHSA-fw8c-xr5c-95f9 · MAL-2026-2306',
+      btnLabel: 'axios · npm RAT',
+      btnActiveClass: 'inc-btn related-active',
+      title: 'axios npm — Cross-Platform RAT',
+      sub: 'Maintainer Account Hijack · phantom dep · postinstall RAT · Mar 31 2026',
+      stats: [
+        {val:'~3h',  cls:'red',    lbl:'Exposure'},
+        {val:'83M',  cls:'orange', lbl:'Wkly downloads'},
+        {val:'2',    cls:'red',    lbl:'Versions'},
+        {val:'RAT',  cls:'purple', lbl:'Payload type'},
+      ],
+      meta: ['Mar 30–31, 2026','actor:Attribution uncertain (TeamPCP adjacent)','cve:GHSA-fw8c-xr5c-95f9 · MAL-2026-2306'],
+    },
+    nodes:[
+      {id:'nrwise',   label:'nrwise account',    sub:'Attacker-created npm account', phase:'actor',   col:0, row:1,
+       title:'nrwise — Pre-Staging Account',
+       desc:'Attacker-controlled npm account (email: nrwise@proton.me) created to pre-stage the malicious dependency plain-crypto-js approximately 18 hours before the axios attack. Published a clean decoy 4.2.0 to establish account history, then 4.2.1 with the payload.',
+       details:[{k:'Account email',v:'nrwise@proton.me'},{k:'Timing',v:'plain-crypto-js@4.2.0 at Mar 30 05:57 UTC (decoy)'},{k:'Payload version',v:'plain-crypto-js@4.2.1 at Mar 30 23:59 UTC'},{k:'Detection',v:'Socket automated detection flagged 4.2.1 within 6 minutes'}],
+       iocs:['plain-crypto-js@4.2.1'],mitre:'T1136 — Create Account\nT1195.001 — Supply Chain Compromise'},
+
+      {id:'plaincrypto',label:'plain-crypto-js@4.2.1',sub:'Phantom dependency · postinstall',phase:'staging',col:1,row:1,
+       title:'plain-crypto-js@4.2.1 — Phantom Dependency',
+       desc:'Never imported by axios source. Solely provides a postinstall hook: "postinstall": "node setup.js". setup.js (4,209 bytes) uses two-layer obfuscation: reversed Base64 with underscore-padding substitution, then XOR cipher with key "OrDeR_7077" (constant 333). After execution, setup.js self-deletes and replaces package.json with clean-looking package.md to evade forensic inspection.',
+       details:[{k:'Obfuscation L1',v:'Reversed Base64 with underscore padding'},{k:'Obfuscation L2',v:'XOR cipher · key: OrDeR_7077 (constant: 333)'},{k:'Anti-forensics',v:'setup.js self-deletes; package.json replaced with package.md'},{k:'SHA-256',v:'58401c195fe0a6204b42f5f90995ece5fab74ce7c69c67a24c61a057325af668'}],
+       iocs:['plain-crypto-js@4.2.1'],mitre:'T1027 — Obfuscated Files\nT1059.007 — JavaScript'},
+
+      {id:'jasonsaayman',label:'jasonsaayman account',sub:'Compromised axios maintainer',phase:'acccomp',col:2,row:1,
+       title:'jasonsaayman — Compromised Maintainer Account',
+       desc:'The primary axios maintainer\'s npm account was hijacked — email changed to ifstap@proton.me. The attacker used a long-lived classic npm access token that co-existed alongside the project\'s OIDC Trusted Publisher setup. Malicious versions carry no OIDC provenance attestation and no gitHead field — detectable signals. Exact compromise vector unconfirmed; large-scale developer-targeting phishing campaign was active at the time.',
+       details:[{k:'Email changed to',v:'ifstap@proton.me'},{k:'Token used',v:'Long-lived classic npm token (not OIDC)'},{k:'Tells',v:'No OIDC provenance · no gitHead field'},{k:'Jasonsaayman\'s statement',v:'"MFA on practically everything" — exact vector unconfirmed'}],
+       iocs:[],mitre:'T1078 — Valid Accounts\nT1566 — Phishing (likely vector)'},
+
+      {id:'axiosworm',label:'axios@1.14.1 / 0.30.4',sub:'Backdoored via phantom dep', phase:'weapon',  col:3, row:1,
+       title:'axios Poisoned — Two Branches',
+       desc:'axios@1.14.1 (1.x branch) published at 00:21 UTC; axios@0.30.4 (0.x branch) at 01:00 UTC. Any project with caret ranges (^1.14.0 or ^0.30.0) would have pulled these on npm install. Both versions unpublished by 03:29 UTC. Detection: no OIDC provenance attestation, no gitHead field.',
+       details:[{k:'v1.14.1 published',v:'Mar 31 00:21 UTC'},{k:'v0.30.4 published',v:'Mar 31 01:00 UTC'},{k:'Unpublished',v:'Mar 31 03:15–03:29 UTC'},{k:'Safe versions',v:'axios@1.14.0 (1.x) · axios@0.30.3 (0.x)'}],
+       iocs:['axios@1.14.1','axios@0.30.4'],mitre:'T1195.001 — Supply Chain Compromise'},
+
+      {id:'setupjs',  label:'postinstall → setup.js', sub:'Within 2s of npm install',   phase:'exec',    col:4, row:1,
+       title:'setup.js — Cross-Platform Dropper',
+       desc:'Fires within 2 seconds of npm install on any machine. Decodes the two-layer obfuscation, detects the OS, and drops a platform-specific RAT. macOS: uses AppleScript (osascript) + codesign --force --deep --sign to bypass Gatekeeper. Windows: VBScript + hidden PowerShell with registry Run key. Linux: curl + nohup python3.',
+       details:[{k:'macOS path',v:'/Library/Caches/com.apple.act.mond (AppleScript + codesign)'},{k:'Windows path',v:'%PROGRAMDATA%\\wt.exe · %TEMP%\\6202033.ps1/.vbs'},{k:'Windows persist',v:'Registry Run key: MicrosoftUpdate'},{k:'Linux path',v:'/tmp/ld.py · curl + nohup python3'}],
+       iocs:['com.apple.act.mond','%TEMP%\\6202033.ps1','6202033.vbs','/tmp/ld.py'],mitre:'T1059 — Command and Scripting Interpreter\nT1547.001 — Registry Run Keys'},
+
+      {id:'rat',      label:'Cross-Platform RAT',     sub:'Exec · fingerprint · exfil',  phase:'rat',     col:5, row:1,
+       title:'Remote Access Trojan — Capabilities',
+       desc:'Full-featured RAT with binary injection, shell execution, filesystem enumeration, and system fingerprinting (hostname, macOS version, running processes, /Applications). Exfiltrates using AES-256-CBC + RSA-4096 encryption before transmission. Beacon interval: 60 seconds. Fake User-Agent mimics IE8 on Windows XP. Also targets @shadanai/openclaw — TeamPCP\'s own recon tool — suggesting overlap.',
+       details:[{k:'Capabilities',v:'peinject · runscript · rundir · kill · fingerprint'},{k:'Targets',v:'Hostname · processes · /Applications · credentials'},{k:'Encryption',v:'AES-256-CBC + RSA-4096 (same as TeamPCP)'},{k:'Linked pkg',v:'@shadanai/openclaw (TeamPCP recon tool name)'}],
+       iocs:['com.apple.act.mond'],mitre:'T1571 — Non-Standard Port\nT1041 — Exfiltration over C2'},
+
+      {id:'c2axios',  label:'sfrclak[.]com:8000',     sub:'C2 · /6202033 · 60s beacon',  phase:'c2',      col:6, row:1,
+       title:'C2 — sfrclak.com:8000',
+       desc:'All three platform RATs beacon to sfrclak[.]com:8000 with path /6202033. Fake npm-lookalike POST paths: packages[.]npm[.]org/product0 (macOS), product1 (Windows), product2 (Linux). Note: npm.org is not the npm registry. Distinct infrastructure from TeamPCP\'s Havoc/AdaptixC2 servers — separate C2 stack. Socket found "no evidence linking this to TeamPCP" but @shadanai/openclaw overlap exists.',
+       details:[{k:'C2 domain',v:'sfrclak[.]com'},{k:'C2 IP',v:'142.11.206[.]73'},{k:'C2 path',v:'/6202033'},{k:'Attribution',v:'Uncertain — Socket says not confirmed TeamPCP; @shadanai/openclaw overlap suggests possible link'}],
+       iocs:['sfrclak[.]com','142.11.206[.]73'],mitre:'T1071 — Application Layer Protocol\nT1041 — Exfiltration over C2'},
+    ],
+    edges:[
+      {from:'nrwise',      to:'plaincrypto', label:'publishes'},
+      {from:'jasonsaayman',to:'axiosworm',   label:'publishes'},
+      {from:'plaincrypto', to:'axiosworm',   label:'injected as dep'},
+      {from:'axiosworm',   to:'setupjs',     label:'postinstall'},
+      {from:'setupjs',     to:'rat',         label:'drops RAT'},
+      {from:'rat',         to:'c2axios',     label:'beacons (60s)'},
+    ],
+    timeline:[
+      {date:'Mar 30 05:57',wave:0, text:'<strong>nrwise</strong> publishes clean decoy <strong>plain-crypto-js@4.2.0</strong> to establish account history'},
+      {date:'Mar 30 23:59',wave:1, text:'Malicious <strong>plain-crypto-js@4.2.1</strong> published with postinstall payload'},
+      {date:'Mar 31 00:05',wave:1, text:'<strong>Socket automated detection</strong> flags plain-crypto-js@4.2.1 (6 min after publish)'},
+      {date:'Mar 31 00:21',wave:1, text:'<strong>axios@1.14.1</strong> published via compromised jasonsaayman account'},
+      {date:'Mar 31 00:27',wave:1, text:'Socket detects compromised axios version (6 min after publish)'},
+      {date:'Mar 31 01:00',wave:1, text:'<strong>axios@0.30.4</strong> published (0.x branch)'},
+      {date:'Mar 31 03:15',wave:1, text:'Both axios versions begin being unpublished from npm'},
+      {date:'Mar 31 03:25',wave:2, text:'npm places security hold on plain-crypto-js'},
+      {date:'Mar 31 03:29',wave:2, text:'All malicious versions removed. Total exposure: ~3 hours.'},
+      {date:'Mar 31 04:26',wave:2, text:'npm publishes security stub <strong>plain-crypto-js@0.0.1-security.0</strong>'},
+      {date:'Mar 31',      wave:3, text:'<strong>StepSecurity Harden-Runner</strong> (12K+ repos) detected anomalous outbound connections to sfrclak.com:8000 — primary discovery mechanism'},
+      {date:'Mar 31',      wave:3, text:'GitHub issue axios/axios#10604 opened; jasonsaayman npm/GitHub accounts suspended'},
+    ],
+    iocs:{
+      domains:[
+        {val:'sfrclak[.]com',badge:'c2',note:'Primary C2 · all three platform RATs beacon to :8000 · path /6202033'},
+      ],
+      ips:[
+        {val:'142.11.206[.]73',badge:'c2',note:'C2 server IP for sfrclak.com · port 8000'},
+      ],
+      files:[
+        {val:'/Library/Caches/com.apple.act.mond',badge:'rat',      note:'macOS RAT binary · AppleScript-launched · codesign --force --deep --sign to bypass Gatekeeper'},
+        {val:'%PROGRAMDATA%\\wt.exe',              badge:'rat',      note:'Windows RAT (PowerShell copy) · hidden execution'},
+        {val:'%TEMP%\\6202033.ps1 / .vbs',         badge:'dropper',  note:'Windows PowerShell + VBScript dropper'},
+        {val:'/tmp/ld.py',                          badge:'rat',      note:'Linux RAT · curl + nohup python3'},
+        {val:'HKLM\\...\\Run: MicrosoftUpdate',    badge:'persistence',note:'Windows registry Run key persistence'},
+      ],
+      packages:[
+        {val:'axios@1.14.1',        badge:'worm',note:'npm · poisoned · unpublished 03:29 UTC · SHA-256: 5bb67e88…'},
+        {val:'axios@0.30.4',        badge:'worm',note:'npm · poisoned · unpublished 03:29 UTC · SHA-256: 59336a96…'},
+        {val:'plain-crypto-js@4.2.1',badge:'dropper',note:'npm · phantom dep · security hold · SHA-256: 58401c19…'},
+        {val:'@shadanai/openclaw',  badge:'worm',note:'npm · same campaign cluster · "openclaw" = TeamPCP recon tool name'},
+        {val:'@qqbrowser/openclaw-qbot@0.0.130',badge:'worm',note:'npm · same C2 (sfrclak.com) · secondary cluster'},
+      ],
+      k8s:[
+        {val:'N/A — no K8s artifacts',badge:'payload',note:'axios attack targets developer machines (not K8s environments). Check for RAT files on developer workstations and CI runners.'},
+      ],
+    },
+    refs:[
+      {source:'Socket',     cred:'confirmed', title:'axios npm Package Compromised — Supply Chain Attack',          url:'https://socket.dev/blog/axios-npm-package-compromised',                            note:'Primary technical report including payload analysis and attribution caveats'},
+      {source:'Wiz',        cred:'confirmed', title:'axios npm Compromised in Supply Chain Attack',                url:'https://www.wiz.io/blog/axios-npm-compromised-in-supply-chain-attack',             note:'Cloud impact analysis — LiteLLM in 36% of cloud envs'},
+      {source:'StepSecurity',cred:'confirmed',title:'axios Compromised on npm — Malicious Versions Drop RAT',      url:'https://www.stepsecurity.io/blog/axios-compromised-on-npm-malicious-versions-drop-remote-access-trojan', note:'Discovery — Harden-Runner detected C2 beaconing from 12K+ repos'},
+      {source:'Aikido',     cred:'high',      title:'axios npm Compromised — Maintainer Account Hijacked, RAT',   url:'https://www.aikido.dev/blog/axios-npm-compromised-maintainer-hijacked-rat',         note:'Maintainer account compromise details and account forensics'},
+      {source:'Snyk',       cred:'high',      title:'axios npm Compromised — Cross-Platform Supply Chain Attack',  url:'https://snyk.io/blog/axios-npm-package-compromised-supply-chain-attack-delivers-cross-platform/', note:'Snyk advisory SNYK-JS-AXIOS-15850650'},
+      {source:'GitHub',     cred:'confirmed', title:'axios/axios Issue #10604 — Tracking Thread',                 url:'https://github.com/axios/axios/issues/10604',                                      note:'Primary tracking issue · collaborator DigitalBrainJS confirmed breach'},
+      {source:'OX Security', cred:'high',    title:'axios Compromised with a Malicious Dependency',              url:'https://www.ox.security/blog/axios-compromised-with-a-malicious-dependency/',      note:'Phantom dependency injection analysis'},
+      {source:'Phoenix Security',cred:'high', title:'axios npm Supply Chain Compromise',                          url:'https://phoenix.security/axios-supply-chain-compromise-npm-rat-teampcp-2026/',    note:'TeamPCP connection analysis and @shadanai/openclaw overlap'},
+    ],
+  },
+
+  shaihulud: {
+    meta: {
+      badgeClass: 'badge-worm',
+      badge: 'CRITICAL · CVE-2025-66478 · Self-Replicating Worm',
+      btnLabel: 'Shai-Hulud · npm Worm',
+      btnActiveClass: 'inc-btn worm-active',
+      title: 'Shai-Hulud — npm Self-Replicating Worm',
+      sub: 'Three-Wave npm Supply Chain Worm · Sep–Dec 2025 · 796 packages · 25K+ repos',
+      stats: [
+        {val:'3',    cls:'red',    lbl:'Waves'},
+        {val:'796',  cls:'orange', lbl:'npm pkgs (v2)'},
+        {val:'25K+', cls:'purple', lbl:'GitHub repos'},
+        {val:'2.5K', cls:'red',    lbl:'Active secrets'},
+        {val:'27%',  cls:'green',  lbl:'Cloud envs hit'},
+      ],
+      meta: [
+        'Sep 14, 2025 – Dec 29, 2025',
+        'actor:Unknown · LLM-assisted (Unit 42 · moderate confidence)',
+        'cve:CVE-2025-66478 · CISA KEV (Dec 17, 2025)',
+      ],
+    },
+    nodes: [
+      {id:'actor',   label:'Unknown Actor',         sub:'LLM-assisted · possible APT31 overlap',  phase:'actor',      col:0, row:1,
+       title:'Unknown Threat Actor',
+       desc:'Attribution unconfirmed. Unit 42 assesses with moderate confidence that an LLM was used to write the malicious bash scripts — evidenced by embedded comments and emoji usage, a tactic also observed in the S1ngularity precursor. Some researchers note TTP overlap with APT31 (Chinese state-sponsored), but no forensic confirmation exists. Shai-Hulud 3.0 is assessed as requiring access to the original source code, suggesting an insider or source code leak rather than independent reimplementation.',
+       details:[{k:'Attribution',v:'Unconfirmed — no nation-state or criminal group formally named'},{k:'LLM use',v:'Unit 42 moderate confidence — comments + emojis in malicious bash'},{k:'S1ngularity link',v:'Shared TTPs + 3-week gap suggests same actor or shared tooling'},{k:'v3 assessment',v:'Aikido: likely access to original source code (not reimplementation)'}],
+       iocs:[],mitre:'T1583 — Acquire Infrastructure\nT1588 — Obtain Capabilities'},
+
+      {id:'s1ng',    label:'S1ngularity Precursor', sub:'Nx repo · Aug 26, 2025 · CI exploit',     phase:'initial',    col:1, row:0,
+       title:'S1ngularity — GitHub Actions Initial Access',
+       desc:'On August 26, 2025, attackers exploited a pull_request_target GitHub Actions workflow in the nrwl/nx repository. The workflow ran with elevated permissions and was vulnerable to code injection via unsanitized pull request titles, allowing arbitrary command execution in the base repo context. This exfiltrated the Nx team\'s npm publish token, 1,000+ GitHub tokens from downstream CI pipelines, and access to 5,500+ private repositories. Three weeks later, unrotated npm tokens seeded Shai-Hulud v1.',
+       details:[{k:'Target',v:'nrwl/nx (Nx build system) — 5M+ weekly npm downloads'},{k:'Exploit',v:'pull_request_target · unsanitized PR title → code injection'},{k:'Exfiltrated',v:'~1,000+ GitHub tokens · 5,500+ private repos · npm publish token'},{k:'Date',v:'August 26, 2025'}],
+       iocs:[],mitre:'T1195.001 — Supply Chain Compromise\nT1552.001 — Credentials in CI Secrets'},
+
+      {id:'stolen',  label:'Stolen npm Tokens',     sub:'1,000+ tokens · unrotated 3 weeks',       phase:'harvest',    col:1, row:2,
+       title:'Token Harvest — S1ngularity → Shai-Hulud',
+       desc:'npm publish tokens harvested during the S1ngularity Nx compromise remained unrotated for approximately 3 weeks — the seed enabling Shai-Hulud v1 on September 14, 2025. A separate vector also documented: phishing emails disguised as npm security alerts to compromise developer accounts. For v2 (Nov 24, 2025), a malicious commit was introduced to asyncapi/cli via a since-deleted GitHub account, stealing the AsyncAPI npm publish token as the v2 seed.',
+       details:[{k:'v1 seed',v:'Unrotated npm tokens from S1ngularity breach (Aug → Sep, ~3 weeks)'},{k:'v2 seed',v:'asyncapi/cli malicious PR commit — AsyncAPI npm token stolen'},{k:'Retention rate',v:'~60% of leaked npm tokens still valid as of December 1, 2025'},{k:'Secondary vector',v:'Phishing emails disguised as npm security alerts'}],
+       iocs:[],mitre:'T1078 — Valid Accounts\nT1566 — Phishing'},
+
+      {id:'inject',  label:'Postinstall Injection', sub:'postinstall/preinstall · 796 pkgs infected',phase:'compromise', col:2, row:1,
+       title:'Malicious Package Injection',
+       desc:'v1 injects a "postinstall" hook into legitimate packages\' package.json, executing bundle.js (~3MB) on npm install. v2 switches to "preinstall" with setup_bun.js as dropper, then executes the 10MB+ bun_environment.js (480,000 lines, heavily obfuscated) via the Bun JavaScript runtime — specifically chosen to evade Node.js-focused security sandboxes and monitoring. v1 infected 164 packages including @ctrl/tinycolor (2.2M weekly downloads); v2 hit 796 packages with >20M combined weekly downloads.',
+       details:[{k:'v1',v:'"postinstall": "node bundle.js" · 164 unique pkgs · 338 versions'},{k:'v2',v:'"preinstall": setup_bun.js → Bun runtime → bun_environment.js (10MB)'},{k:'v2 obfuscation',v:'480,000 lines · Bun chosen to evade Node.js-focused security tooling'},{k:'High-impact pkgs',v:'@ctrl/tinycolor 4.1.1 (v1) · @postman/tunnel-agent (v2, 27% of infected envs)'}],
+       iocs:['bundle.js','setup_bun.js','bun_environment.js'],mitre:'T1195.001 — Supply Chain Compromise\nT1059.007 — JavaScript'},
+
+      {id:'truffle', label:'TruffleHog Harvester',  sub:'800+ secret types · .truffler-cache/',     phase:'weapon',     col:3, row:0,
+       title:'Credential Harvesting — TruffleHog + Cloud SDKs',
+       desc:'Both v1 and v2 deploy TruffleHog from .truffler-cache/ to deep-scan the filesystem for 800+ secret types. v2 also queries AWS/Azure/GCP IMDS endpoints, scans cloud secret managers (AWS Secrets Manager, Azure Key Vault, GCP Secret Manager), and bundles official AWS/GCP/Azure SDKs for credential validation. Stolen data is staged to multiple JSON files. v2 scale: 775 GitHub tokens, 373 AWS, 300 GCP, 115 Azure credentials extracted across all victims by late November 2025.',
+       details:[{k:'Tool',v:'TruffleHog · 800+ secret types · deployed from .truffler-cache/'},{k:'v2 staged files',v:'cloud.json · environment.json · contents.json · truffleSecrets.json'},{k:'Cloud targets',v:'AWS/Azure/GCP IMDS · Secret Managers · SDK bundles for validation'},{k:'v2 scale (Nov 2025)',v:'775 GitHub tokens · 373 AWS · 300 GCP · 115 Azure active credentials'}],
+       iocs:['.truffler-cache/','cloud.json','truffleSecrets.json','actionsSecrets.json'],mitre:'T1552 — Unsecured Credentials\nT1078 — Valid Accounts'},
+
+      {id:'spread',  label:'Worm Self-Propagation', sub:'100 pkgs/victim · patch bump · re-infects', phase:'weapon',    col:3, row:2,
+       title:'npm Worm Self-Propagation Mechanism',
+       desc:'Using stolen npm tokens, the malware authenticates to registry.npmjs.org, enumerates all packages accessible to the victim, injects the malicious payload, bumps the patch version, and republishes as "latest" — up to 100 packages per victim. v2 adds cross-victim token recycling: if own npm token is invalid, it searches GitHub for other victims\' "Sha1-Hulud: The Second Coming." repos, decodes their triple-Base64 stolen tokens, and adopts one to continue propagating. This creates a self-healing worm botnet.',
+       details:[{k:'Propagation',v:'npm whoami → search packages → inject payload → publish latest'},{k:'Per-victim limit',v:'Up to 100 packages republished per stolen token'},{k:'v2 token recycling',v:'Searches GitHub for "The Second Coming." repos · decodes + adopts stolen tokens'},{k:'v2 peak',v:'~1,000 new GitHub repos every 30 min (Nov 25, 2025 22:45 UTC)'}],
+       iocs:['registry.npmjs.org/-/whoami'],mitre:'T1195.001 — Supply Chain Compromise\nT1550.001 — Application Access Token'},
+
+      {id:'exfil',   label:'GitHub Repo Exfiltration',sub:'25K+ repos · double/triple Base64',      phase:'c2',         col:4, row:0,
+       title:'GitHub-Based C2 Exfiltration',
+       desc:'v1 encodes stolen data in triple Base64 and commits to newly created public GitHub repos named "Shai-Hulud" with description "Shai-Hulud Repository". Secondary v1: webhook.site (hit the 100-callback free-plan limit). v2 uses double Base64, creates repos with random 18-character alphanumeric names and description "Sha1-Hulud: The Second Coming." — 25,000–30,000 repos created at peak. GitHub-based exfiltration blends with normal API traffic and bypasses traditional network-layer inspection.',
+       details:[{k:'v1 repo',v:'"Shai-Hulud" · desc: "Shai-Hulud Repository" · triple Base64'},{k:'v2 repo',v:'Random 18-char alphanumeric · desc: "Sha1-Hulud: The Second Coming."'},{k:'v1 secondary',v:'webhook[.]site/bb8ca5f6-4175-45d2-b042-fc9ebb8170b7'},{k:'Scale',v:'25,000–30,000 malicious GitHub repos created during v2 peak'}],
+       iocs:['webhook[.]site/bb8ca5f6-4175-45d2-b042-fc9ebb8170b7'],mitre:'T1567.001 — Exfil to Code Repository\nT1041 — Exfiltration over C2'},
+
+      {id:'backdoor',label:'SHA1HULUD Runner',       sub:'~/.dev-env/ · discussion.yaml RCE',        phase:'persist',    col:4, row:2,
+       title:'Persistent Backdoor — Self-Hosted GitHub Actions Runner',
+       desc:'v2 installs a self-hosted GitHub Actions runner named "SHA1HULUD" at ~/.dev-env/ using runner v2.330.0. A malicious workflow .github/workflows/discussion.yaml is injected, containing a command injection vulnerability triggered via GitHub Discussions — enabling arbitrary remote code execution on the victim machine at any future time. This persistence mechanism is independent of the npm ecosystem: it survives token rotation, package removal, and npm registry cleanup.',
+       details:[{k:'Runner name',v:'SHA1HULUD'},{k:'Install path',v:'~/.dev-env/ (GitHub Actions runner v2.330.0)'},{k:'RCE trigger',v:'.github/workflows/discussion.yaml — cmd injection via GitHub Discussions'},{k:'Persistence',v:'Survives npm token rotation · independent of package ecosystem'}],
+       iocs:['~/.dev-env/','discussion.yaml','.github/workflows/discussion.yaml'],mitre:'T1053 — Scheduled Task/Job\nT1059 — Command and Scripting Interpreter'},
+
+      {id:'wiper',   label:'Dead Man\'s Switch',     sub:'shred -uvz / cipher /W · on eviction',    phase:'exec',       col:5, row:1,
+       title:'Dead Man\'s Switch — Cross-Platform Filesystem Wipe',
+       desc:'If both GitHub AND npm access are simultaneously revoked (indicating detection), v2 triggers home directory destruction: Linux/macOS: find + shred -uvz -n 1 (cryptographic overwrite, 1 pass); Windows: del /F /Q /S + cipher /W:%USERPROFILE% (overwrites free space to prevent recovery). Also triggers private→public repository migration (CreateEvent + PublicEvent on same repo) to expose victim intellectual property before access is fully cut off.',
+       details:[{k:'Linux/macOS',v:'find ~ + shred -uvz -n 1 (secure overwrite, 1 pass)'},{k:'Windows',v:'del /F /Q /S %USERPROFILE% + cipher /W:%USERPROFILE%'},{k:'Trigger',v:'Both GitHub AND npm access revoked simultaneously (eviction detected)'},{k:'IP exposure',v:'Private repos migrated public with -migration suffix before cutoff'}],
+       iocs:['/tmp/processor.sh','/tmp/migrate-repos.sh'],mitre:'T1485 — Data Destruction\nT1565 — Data Manipulation'},
+    ],
+    edges: [
+      {from:'actor',   to:'s1ng',    label:'exploits'},
+      {from:'s1ng',    to:'stolen',  label:'exfiltrates'},
+      {from:'stolen',  to:'inject',  label:'enables'},
+      {from:'inject',  to:'truffle', label:'deploys'},
+      {from:'inject',  to:'spread',  label:'propagates'},
+      {from:'truffle', to:'exfil',   label:'uploads'},
+      {from:'truffle', to:'backdoor',label:'installs runner'},
+      {from:'spread',  to:'inject',  label:'re-infects'},
+      {from:'backdoor',to:'wiper',   label:'if evicted'},
+    ],
+    timeline: [
+      {date:'Aug 26, 2025', wave:1, text:'<strong>S1ngularity</strong> — pull_request_target exploit fires on nrwl/nx; 1,000+ GitHub tokens + npm publish token stolen; 5,500+ private repos exposed'},
+      {date:'Sep 14, 2025', wave:1, text:'<strong>Shai-Hulud v1 patient zero</strong>: <strong>rxnt-authentication@0.0.3</strong> published at 17:58 UTC — first infected package'},
+      {date:'Sep 15–16',    wave:1, text:'v1 worm spreads to 164 unique packages (338 versions) — <strong>@ctrl/tinycolor@4.1.1</strong> (2.2M weekly downloads) among earliest high-impact packages'},
+      {date:'Sep 16, 2025', wave:1, text:'<strong>JFrog Security Research</strong> publishes initial v1 disclosure; Socket and others begin coordinated takedown'},
+      {date:'Sep 23, 2025', wave:1, text:'CISA publishes alert on "widespread supply chain compromise" — 500+ npm packages affected at this point'},
+      {date:'Nov 24 01:22', wave:2, text:'<strong>Shai-Hulud v2 "The Second Coming"</strong> — malicious commit in asyncapi/cli repo; earliest leaked secrets appear on GitHub'},
+      {date:'Nov 24 03:00', wave:2, text:'First v2 malicious npm uploads — bun-based preinstall + 10MB obfuscated <strong>bun_environment.js</strong> payload'},
+      {date:'Nov 24 18:00', wave:2, text:'Last observed v2 package; npm containment begins — PostHog, Postman, AsyncAPI, Trigger.dev, Zapier confirmed compromised'},
+      {date:'Nov 25 22:45', wave:2, text:'Phase 2 of v2 resumes — <strong>~1,000 new GitHub repos every 30 minutes</strong> at peak; cross-victim token recycling active'},
+      {date:'Dec 1, 2025',  wave:2, text:'Renewed infection spike: 200+ new repos in 12 hours; ~60% of leaked npm tokens still valid'},
+      {date:'Dec 4, 2025',  wave:2, text:'PostHog publishes postmortem; Maven ecosystem spill confirmed (<strong>org.mvnpm:posthog-node:4.18.1</strong> contaminated via npm→Maven mirroring)'},
+      {date:'Dec 17, 2025', wave:3, text:'<strong>CVE-2025-66478</strong> added to CISA KEV list — federal agencies directed to patch by December 24'},
+      {date:'Dec 29, 2025', wave:3, text:'<strong>Shai-Hulud 3.0</strong> discovered in @vietmoney/react-big-calendar@0.26.2 — new obfuscation variant; assessed as access to original source code'},
+    ],
+    iocs: {
+      domains: [
+        {val:'webhook[.]site/bb8ca5f6-4175-45d2-b042-fc9ebb8170b7', badge:'exfil', note:'v1 secondary exfil endpoint · hit 100-callback free plan limit · non-functional shortly after'},
+      ],
+      ips: [],
+      files: [
+        {val:'bundle.js',                        badge:'payload',    note:'v1 worm payload · ~3MB · postinstall hook · SHA-256: 46faab8a…'},
+        {val:'setup_bun.js',                     badge:'dropper',    note:'v2 dropper · installs Bun runtime as cover · SHA-256: a3894003…'},
+        {val:'bun_environment.js',               badge:'payload',    note:'v2 core payload · 10MB+ · 480K obfuscated lines · SHA-256: 62ee164b… (multiple variants)'},
+        {val:'shai-hulud-workflow.yml',          badge:'persistence',note:'v1 GitHub Actions workflow · exfiltrates tokens to webhook.site'},
+        {val:'discussion.yaml',                  badge:'persistence',note:'v2 persistent RCE via GitHub Discussions command injection · ~/.github/workflows/'},
+        {val:'~/.dev-env/',                      badge:'persistence',note:'v2 SHA1HULUD self-hosted runner · GitHub Actions runner v2.330.0'},
+        {val:'/tmp/processor.sh',                badge:'payload',    note:'Creates malicious branch and uploads workflow payload'},
+        {val:'/tmp/migrate-repos.sh',            badge:'payload',    note:'Migrates victim private repos to public with -migration suffix'},
+        {val:'cloud.json / truffleSecrets.json', badge:'exfil',      note:'v2 staged credential files before GitHub repo exfiltration'},
+      ],
+      packages: [
+        {val:'rxnt-authentication@0.0.3',        badge:'worm', note:'v1 patient zero · Sep 14, 2025 17:58 UTC'},
+        {val:'@ctrl/tinycolor@4.1.1',            badge:'worm', note:'v1 high-impact · 2.2M weekly downloads · among earliest spread'},
+        {val:'@postman/tunnel-agent@0.6.7',      badge:'worm', note:'v2 · found in 27% of Wiz-scanned infected environments'},
+        {val:'posthog-node (multiple)',           badge:'worm', note:'v2 · 25% of infected envs · spread to Maven: org.mvnpm:posthog-node:4.18.1'},
+        {val:'@asyncapi/specs@6.8.3',            badge:'worm', note:'v2 · 20% of infected envs · AsyncAPI was the v2 root compromise vector'},
+        {val:'@vietmoney/react-big-calendar@0.26.2', badge:'worm', note:'v3 · Dec 29, 2025 · new obfuscation · assessed as source code access'},
+      ],
+      k8s: [
+        {val:'N/A — targets developer machines and CI runners', badge:'payload', note:'Shai-Hulud focuses on npm maintainer machines and CI/CD pipelines. Check ~/.dev-env/ for SHA1HULUD runner and .github/workflows/ for discussion.yaml.'},
+      ],
+    },
+    refs: [
+      {source:'Wiz',        cred:'confirmed', title:'Shai-Hulud v1 — npm Supply Chain Attack',                url:'https://www.wiz.io/blog/shai-hulud-npm-supply-chain-attack',                                           note:'Primary v1 technical report — postinstall mechanism, TruffleHog deploy, npm propagation'},
+      {source:'Wiz',        cred:'confirmed', title:'Shai-Hulud 2.0 — 25K+ Repos, AsyncAPI Root Cause',      url:'https://www.wiz.io/blog/shai-hulud-2-0-ongoing-supply-chain-attack',                                    note:'v2 bun-based payload, cross-victim token recycling, AsyncAPI compromise vector'},
+      {source:'Wiz',        cred:'confirmed', title:'Shai-Hulud 2.0 Aftermath — Trends, Victimology, Impact', url:'https://www.wiz.io/blog/shai-hulud-2-0-aftermath-ongoing-supply-chain-attack',                         note:'PostHog, Postman, Zapier, Trigger.dev confirmed compromised · scale analysis'},
+      {source:'Unit 42',    cred:'high',      title:'"Shai-Hulud" Worm Compromises npm Ecosystem',           url:'https://unit42.paloaltonetworks.com/npm-supply-chain-attack/',                                         note:'LLM-assisted script assessment · payload deobfuscation · dead man\'s switch analysis'},
+      {source:'Datadog',    cred:'high',      title:'Shai-Hulud 2.0 npm Worm — Deep Technical Analysis',     url:'https://securitylabs.datadoghq.com/articles/shai-hulud-2.0-npm-worm/',                                  note:'bun_environment.js deobfuscation · SHA1HULUD runner · cross-victim token recycling'},
+      {source:'Check Point',cred:'high',      title:'Shai-Hulud 2.0 — Inside The Second Coming',             url:'https://blog.checkpoint.com/research/shai-hulud-2-0-inside-the-second-coming-the-most-aggressive-npm-supply-chain-attack-of-2025/', note:'"Most aggressive npm supply chain attack of 2025" — discussion.yaml RCE breakdown'},
+      {source:'Microsoft',  cred:'high',      title:'Shai-Hulud 2.0 — Detection, Investigation, Defense',    url:'https://www.microsoft.com/en-us/security/blog/2025/12/09/shai-hulud-2-0-guidance-for-detecting-investigating-and-defending-against-the-supply-chain-attack/', note:'Microsoft Defender detection guidance and investigation playbook'},
+      {source:'JFrog',      cred:'high',      title:'Shai-Hulud — New Compromised Packages Detected',        url:'https://jfrog.com/blog/shai-hulud-npm-supply-chain-attack-new-compromised-packages-detected/',           note:'v1 discovery post · initial IOC list · bundle.js static analysis'},
+      {source:'Upwind',     cred:'medium',    title:'Shai-Hulud 3.0 — npm Worm Reappears',                   url:'https://www.upwind.io/feed/shai-hulud-3-npm-supply-chain-worm',                                        note:'v3 variant discovery · @vietmoney/react-big-calendar · enhanced obfuscation'},
+    ],
+  },
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let currentId = 'teampcap';
+let zoom = {scale:1, tx:0, ty:0, dragging:false, lastX:0, lastY:0};
+const NODE_W = 168, NODE_H = 58;
+const COL_W = 198, ROW_H = 130, PAD_L = 14, PAD_T = 46;
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function inc() { return INCIDENTS[currentId]; }
+
+function nodeCenter(n) {
+  return { x: PAD_L + n.col * COL_W + NODE_W/2, y: PAD_T + n.row * ROW_H + NODE_H/2 };
+}
+
+function renderHeader() {
+  const m = inc().meta;
+  document.getElementById('hdr-badge').className = 'hdr-badge ' + m.badgeClass;
+  document.getElementById('hdr-badge').textContent = m.badge;
+  document.getElementById('hdr-title').textContent = m.title;
+  document.getElementById('hdr-sub').textContent = m.sub;
+  document.title = m.title + ' — Supply Chain Visualizer';
+
+  document.getElementById('hdr-stats').innerHTML = m.stats.map(s =>
+    `<div class="stat"><span class="stat-val ${s.cls}">${s.val}</span><span class="stat-lbl">${s.lbl}</span></div>`
+  ).join('');
+
+  document.getElementById('hdr-meta').innerHTML = m.meta.map(line => {
+    if (line.startsWith('actor:')) return `<span class="actor">${line.slice(6)}</span>`;
+    if (line.startsWith('cve:'))   return `<span class="cve">${line.slice(4)}</span>`;
+    return `<span>${line}</span>`;
+  }).join('');
+}
+
+function renderIncidentSwitcher() {
+  const btns = document.getElementById('inc-btns');
+  btns.innerHTML = Object.keys(INCIDENTS).map(id => {
+    const isActive = id === currentId;
+    const m = INCIDENTS[id].meta;
+    const cls = isActive ? m.btnActiveClass : 'inc-btn';
+    return `<button class="${cls}" data-id="${id}">${m.btnLabel}</button>`;
+  }).join('');
+  btns.querySelectorAll('.inc-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchIncident(btn.dataset.id));
+  });
+}
+
+function renderFlow() {
+  const svg = document.getElementById('flow-svg');
+  const nodes = inc().nodes;
+  const edges = inc().edges;
+
+  // Compute viewBox from node positions
+  const maxCol = Math.max(...nodes.map(n => n.col));
+  const maxRow = Math.max(...nodes.map(n => n.row));
+  const VW = PAD_L*2 + (maxCol+1)*COL_W;
+  const VH = PAD_T + (maxRow+1)*ROW_H + 20;
+
+  // Group nodes by phase for column backgrounds
+  const phaseColRange = {};
+  nodes.forEach(n => {
+    if (!phaseColRange[n.phase]) phaseColRange[n.phase] = {min:n.col, max:n.col};
+    phaseColRange[n.phase].min = Math.min(phaseColRange[n.phase].min, n.col);
+    phaseColRange[n.phase].max = Math.max(phaseColRange[n.phase].max, n.col);
+  });
+
+  const nmap = {};
+  nodes.forEach(n => { nmap[n.id] = n; });
+
+  let out = `<defs>
+    <marker id="arr" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L8,3.5 z" fill="rgba(255,255,255,0.2)"/>
+    </marker>
+  </defs>
+  <g id="pan-g">`;
+
+  // Phase backgrounds
+  Object.entries(phaseColRange).forEach(([phase, range]) => {
+    const pc = PC[phase];
+    if (!pc || phase === 'actor') return;
+    const x1 = PAD_L + range.min * COL_W - 6;
+    const x2 = PAD_L + range.max * COL_W + NODE_W + 6;
+    out += `<rect x="${x1}" y="2" width="${x2-x1}" height="${VH-4}" rx="8"
+      fill="${pc.bg}" opacity="0.75" stroke="${pc.stroke}" stroke-width="0.4" stroke-opacity="0.25"/>
+    <text x="${(x1+x2)/2}" y="20" text-anchor="middle"
+      fill="${pc.stroke}" font-size="8.5" font-weight="700" letter-spacing="1.5"
+      font-family="'JetBrains Mono',monospace" opacity="0.75">${pc.lbl.toUpperCase()}</text>`;
+  });
+
+  // Edges
+  edges.forEach(e => {
+    const s = nmap[e.from], t = nmap[e.to];
+    if (!s || !t) return;
+    const sc = nodeCenter(s), tc = nodeCenter(t);
+    const sx = sc.x + NODE_W/2 - 8, sy = sc.y;
+    const tx = tc.x - NODE_W/2 + 4, ty = tc.y;
+    const dx = Math.abs(tx - sx) * 0.42;
+    out += `<path d="M${sx},${sy} C${sx+dx},${sy} ${tx-dx},${ty} ${tx},${ty}"
+      fill="none" stroke="rgba(255,255,255,0.11)" stroke-width="1.3" marker-end="url(#arr)"/>`;
+    if (e.label) {
+      const mx = (sx+tx)/2, my = (sy+ty)/2 - 5;
+      out += `<text x="${mx}" y="${my}" text-anchor="middle" fill="rgba(255,255,255,0.25)"
+        font-size="7.5" font-family="'JetBrains Mono',monospace">${e.label}</text>`;
+    }
+  });
+
+  // Nodes
+  nodes.forEach(n => {
+    const {x:cx, y:cy} = nodeCenter(n);
+    const x = cx - NODE_W/2, y = cy - NODE_H/2;
+    const pc = PC[n.phase];
+    out += `<g class="flow-node" data-id="${n.id}" tabindex="0" role="button">
+      <rect class="nbg" x="${x-3}" y="${y-3}" width="${NODE_W+6}" height="${NODE_H+6}" rx="9"
+        fill="${pc.stroke}" opacity="0.07"/>
+      <rect class="nb" x="${x}" y="${y}" width="${NODE_W}" height="${NODE_H}" rx="7"
+        fill="${pc.bg}" stroke="${pc.stroke}" stroke-width="1.3"/>
+      <text x="${cx}" y="${cy-8}" text-anchor="middle" fill="${pc.text}"
+        font-size="10.5" font-weight="700" font-family="'Inter',sans-serif">${n.label}</text>
+      <text x="${cx}" y="${cy+10}" text-anchor="middle" fill="rgba(136,146,164,0.8)"
+        font-size="8.5" font-family="'JetBrains Mono',monospace">${n.sub}</text>
+    </g>`;
+  });
+
+  out += '</g>';
+  svg.innerHTML = out;
+  svg.setAttribute('viewBox', `0 0 ${VW} ${VH}`);
+  svg.setAttribute('height', Math.min(VH, 440));
+
+  // Reset zoom on incident switch
+  zoom = {scale:1, tx:0, ty:0, dragging:false, lastX:0, lastY:0};
+  applyZoom();
+
+  // Node click → detail
+  svg.querySelectorAll('.flow-node').forEach(el => {
+    const open = () => {
+      svg.querySelectorAll('.flow-node').forEach(n => n.classList.remove('selected'));
+      el.classList.add('selected');
+      showDetail(inc().nodes.find(n => n.id === el.dataset.id));
+    };
+    el.addEventListener('click', e => { e.stopPropagation(); open(); });
+    el.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') open(); });
+  });
+
+  // Click on SVG background → deselect (but not during drag)
+  svg.addEventListener('click', e => {
+    if (!e.target.closest('.flow-node') && !zoom.didDrag) closeDetail();
+  });
+}
+
+function applyZoom() {
+  const g = document.getElementById('pan-g');
+  if (g) g.setAttribute('transform', `translate(${zoom.tx},${zoom.ty}) scale(${zoom.scale})`);
+  document.getElementById('zoom-level').textContent = Math.round(zoom.scale*100) + '%';
+}
+
+function screenToSVG(svg, x, y) {
+  const pt = svg.createSVGPoint();
+  pt.x = x; pt.y = y;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+function initZoomPan() {
+  const svg = document.getElementById('flow-svg');
+
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.18 : 0.85;
+    const newScale = Math.max(0.3, Math.min(5, zoom.scale * factor));
+    const pt = screenToSVG(svg, e.clientX, e.clientY);
+    zoom.tx = pt.x - (pt.x - zoom.tx) * (newScale / zoom.scale);
+    zoom.ty = pt.y - (pt.y - zoom.ty) * (newScale / zoom.scale);
+    zoom.scale = newScale;
+    applyZoom();
+  }, {passive: false});
+
+  svg.addEventListener('mousedown', e => {
+    if (e.target.closest('.flow-node')) return;
+    zoom.dragging = true;
+    zoom.didDrag = false;
+    zoom.lastX = e.clientX;
+    zoom.lastY = e.clientY;
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!zoom.dragging) return;
+    const dx = e.clientX - zoom.lastX;
+    const dy = e.clientY - zoom.lastY;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) zoom.didDrag = true;
+    zoom.tx += dx; zoom.ty += dy;
+    zoom.lastX = e.clientX; zoom.lastY = e.clientY;
+    applyZoom();
+  });
+  window.addEventListener('mouseup', () => { zoom.dragging = false; });
+
+  document.getElementById('zoom-in').addEventListener('click', () => {
+    zoom.scale = Math.min(5, zoom.scale * 1.25); applyZoom();
+  });
+  document.getElementById('zoom-out').addEventListener('click', () => {
+    zoom.scale = Math.max(0.3, zoom.scale * 0.8); applyZoom();
+  });
+  document.getElementById('zoom-reset').addEventListener('click', () => {
+    zoom = {...zoom, scale:1, tx:0, ty:0}; applyZoom();
+  });
+}
+
+function showDetail(node) {
+  if (!node) return;
+  const pc = PC[node.phase];
+  document.getElementById('detail-inner').innerHTML = `
+    <div>
+      <div class="dp-phase" style="color:${pc.stroke}">${pc.lbl.toUpperCase()}</div>
+      <div class="dp-title">${node.title}</div>
+      <div class="dp-desc">${node.desc}</div>
+      ${node.mitre ? `<div class="dp-mitre">${node.mitre.split('\n').join('<br>')}</div>` : ''}
+    </div>
+    <div>
+      <div class="dp-col-title">Technical Details</div>
+      ${node.details.map(d=>`<div class="dp-item"><strong>${d.k}:</strong> ${d.v}</div>`).join('')}
+    </div>
+    <div>
+      <div class="dp-col-title">IOCs / Artifacts</div>
+      ${node.iocs.length
+        ? node.iocs.map(i=>`<div class="dp-item" style="color:${pc.text}">${i}</div>`).join('')
+        : '<div class="dp-item" style="color:#2a3a52">See IOC table below</div>'}
+    </div>`;
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('flow-svg').querySelectorAll('.flow-node').forEach(n => n.classList.remove('selected'));
+}
+
+document.getElementById('detail-close').addEventListener('click', closeDetail);
+
+function renderTimeline() {
+  document.getElementById('timeline').innerHTML = inc().timeline.map(t => {
+    const wc = t.wave===1?'w1':t.wave===2?'w2':t.wave===3?'w3':'';
+    const wl = t.wave===1?'W1':t.wave===2?'W2':t.wave===3?'W3':'';
+    return `<div class="tl-item">
+      <span class="tl-date">${t.date}</span>
+      <span class="tl-event">${wl?`<span class="wave ${wc}">${wl}</span>`:''}${t.text}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderIOCs() {
+  const iocs = inc().iocs;
+  const cats = [
+    {key:'domains', label:'C2 Domains'},
+    {key:'ips',     label:'IPs'},
+    {key:'files',   label:'Files'},
+    {key:'packages',label:'Packages'},
+    {key:'k8s',     label:'K8s'},
+  ];
+
+  document.getElementById('ioc-tabs').innerHTML = cats.map((c,i) =>
+    `<button class="ioc-tab${i===0?' active':''}" data-cat="${c.key}">${c.label} <span style="opacity:.5;font-size:.65rem">${(iocs[c.key]||[]).length}</span></button>`
+  ).join('');
+
+  function rowHTML(arr) {
+    if (!arr || !arr.length) return '<div style="color:#2a3a52;font-size:.75rem;padding:4px 0">No data</div>';
+    return arr.map(i => `<div class="ioc-row">
+      <div>
+        <div class="ioc-val ${i.badge==='c2'||i.badge==='rat'?'domain':i.badge==='payload'||i.badge==='dropper'||i.badge==='worm'?'pkg':'file'}">${i.val}</div>
+        <div class="ioc-note">${i.note}</div>
+      </div>
+      <span class="ioc-badge ${i.badge}">${i.badge.toUpperCase()}</span>
+    </div>`).join('');
+  }
+
+  document.getElementById('ioc-body').innerHTML = cats.map((c,i) =>
+    `<div class="ioc-pane${i===0?' active':''}" data-cat="${c.key}">${rowHTML(iocs[c.key])}</div>`
+  ).join('');
+
+  document.getElementById('ioc-tabs').querySelectorAll('.ioc-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.ioc-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.ioc-pane').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelector(`.ioc-pane[data-cat="${tab.dataset.cat}"]`).classList.add('active');
+    });
+  });
+}
+
+function renderRefs() {
+  document.getElementById('refs-grid').innerHTML = inc().refs.map(r => `
+    <div class="ref-card">
+      <div class="ref-card-top">
+        <span class="ref-source">${r.source}</span>
+        <span class="ref-cred ${r.cred}">${r.cred.toUpperCase()}</span>
+      </div>
+      <div class="ref-title"><a href="${r.url}" target="_blank" rel="noopener">${r.title} ↗</a></div>
+      <div class="ref-note">${r.note}</div>
+    </div>`).join('');
+}
+
+function switchIncident(id) {
+  if (id === currentId) return;
+  currentId = id;
+  closeDetail();
+  renderHeader();
+  renderIncidentSwitcher();
+  renderFlow();
+  renderTimeline();
+  renderIOCs();
+  renderRefs();
+}
+
+/* ── Init ──────────────────────────────────────────────────── */
+renderHeader();
+renderIncidentSwitcher();
+renderFlow();
+renderTimeline();
+renderIOCs();
+renderRefs();
+initZoomPan();
+</script>
+</body>
+</html>
