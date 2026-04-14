@@ -53,6 +53,9 @@ h1{font-size:clamp(1rem,2.5vw,1.4rem);font-weight:800;line-height:1.2;letter-spa
 .inc-btn.active{color:#00d4ff;border-bottom-color:#00d4ff;background:rgba(0,212,255,.06)}
 .inc-btn.related-active{color:#ff6b35;border-bottom-color:#ff6b35;background:rgba(255,107,53,.06)}
 .inc-btn.worm-active{color:#00e676;border-bottom-color:#00e676;background:rgba(0,230,118,.06)}
+.inc-btn.new-active{color:#c084fc;border-bottom-color:#c084fc;background:rgba(192,132,252,.06)}
+.badge-active{background:rgba(192,132,252,.12);color:#c084fc;border:1px solid rgba(192,132,252,.3)}
+.badge-active::before{background:#c084fc}
 .gh-link{color:#4a5a72;display:flex;align-items:center;transition:color .15s;flex-shrink:0}
 .gh-link:hover{color:#e2e8f0}
 
@@ -150,9 +153,9 @@ footer{border-top:1px solid rgba(255,255,255,.05);padding:12px 24px;max-width:14
 <header>
   <div class="hdr">
     <div class="hdr-title">
-      <div id="hdr-badge" class="hdr-badge badge-related">RELATED CAMPAIGN · GHSA-fw8c-xr5c-95f9</div>
-      <h1 id="hdr-title">axios npm — Cross-Platform RAT</h1>
-      <div id="hdr-sub" class="hdr-sub">Maintainer Account Hijack · phantom dep · postinstall RAT · Mar 31 2026</div>
+      <div id="hdr-badge" class="hdr-badge badge-active">ACTIVE · Apr 9, 2026 · 200+ npm packages</div>
+      <h1 id="hdr-title">Stardrop — AI Coding Agent Impersonation</h1>
+      <div id="hdr-sub" class="hdr-sub">Brand-squatting npm · VC firms · luxury brands · AI companies · ongoing</div>
     </div>
     <div id="hdr-stats" class="hdr-stats"></div>
     <div id="hdr-meta" class="hdr-meta"></div>
@@ -519,6 +522,139 @@ const INCIDENTS = {
     ],
   },
 
+  stardrop: {
+    meta: {
+      badgeClass: 'badge-active',
+      badge: 'ACTIVE · Apr 9, 2026 · 200+ npm packages',
+      btnLabel: 'Stardrop · AI Agent Lure',
+      btnActiveClass: 'inc-btn new-active',
+      title: 'Stardrop — AI Coding Agent Impersonation',
+      sub: 'Brand-squatting npm · VC firms · luxury brands · AI companies · ongoing',
+      stats: [
+        {val:'200+',  cls:'red',    lbl:'npm packages'},
+        {val:'11',    cls:'purple', lbl:'Binary variants'},
+        {val:'153MB', cls:'orange', lbl:'Max binary'},
+        {val:'macOS', cls:'red',    lbl:'Primary target'},
+        {val:'LIVE',  cls:'red',    lbl:'Status'},
+      ],
+      meta: [
+        'Apr 9, 2026 – ongoing',
+        'actor:Unknown · targeting AI devs · VC firms · luxury brands',
+        'cve:No CVE assigned · npm yanked · CDN mirror persistence',
+      ],
+    },
+    nodes: [
+      {id:'actor',   label:'Unknown Actor',           sub:'brand-squatting · VC/luxury/AI targeting',phase:'actor',   col:0, row:1,
+       title:'Unknown Threat Actor',
+       desc:'Attribution unconfirmed. The actor has deployed 200+ npm packages since April 9, 2026 at a rate of 40+ per day, targeting developers at AI companies, venture capital firms, and luxury brands. Package names impersonate real tools (huggingface-cli, codeium, cursor-ai, windsurf-ai) and real organizations (bessemer-vc, khosla-vc, a16z, givenchy, versace, lamborghini). The attack exploits the trust of developers who expect these organizations to publish legitimate npm packages.',
+       details:[{k:'Rate',v:'40+ packages/day since Apr 9, 2026'},{k:'Target verticals',v:'AI companies · VC firms · luxury brands'},{k:'Lure method',v:'Impersonates AI coding tools (Codeium, Cursor, Windsurf, HuggingFace)'},{k:'Discovery',v:'OpenSourceMalware.com · author @6mile · published Apr 14, 2026'}],
+       iocs:[],mitre:'T1204 — User Execution\nT1583 — Acquire Infrastructure'},
+
+      {id:'pkgs',    label:'200+ Fake npm Packages',  sub:'brandquatting · 0.0.0-dev-* versioning', phase:'initial', col:1, row:0,
+       title:'Brand-Squatting npm Package Campaign',
+       desc:'Over 200 npm packages published with names of real VC firms (a16z, bessemer-vc, khosla-vc, andreessen, dragonfly-vc), luxury brands (givenchy, versace, lamborghini, louisvuitton, northface, valentino, patagonia), and AI coding tools (codeium, cursor-ai, windsurf-ai, huggingface-cli, tabnine-ai, coderabbit-ai, starcoder, supermaven). All packages use a non-standard dev versioning scheme: 0.0.0-dev-YYYYMMDDHHSS. npm has been yanking packages rapidly, but no GHSA or OSV advisories exist.',
+       details:[{k:'Package count',v:'200+ published · rapidly yanked by npm'},{k:'Version scheme',v:'0.0.0-dev-202603XXXXXX (non-standard dev build timestamps)'},{k:'Name categories',v:'VC firms · luxury brands · AI coding tools · city names'},{k:'Main pkg SHA-256',v:'d780fe3b635ff099682677f3c93e42d789e572926fd0db076c27e775bb109b06'}],
+       iocs:['huggingface-cli','codeium','cursor-ai','bessemer-vc','khosla-vc','givenchy','versace','lamborghini'],mitre:'T1195.001 — Supply Chain Compromise\nT1036 — Masquerading'},
+
+      {id:'mirror',  label:'CDN Mirror Persistence',  sub:'Chinese + EU npm mirrors · post-yank',   phase:'staging', col:1, row:2,
+       title:'CDN Mirror Bypass — Packages Survive npm Takedown',
+       desc:'Despite npm yanking packages rapidly, OpenSourceMalware confirmed that Chinese and European npm CDN mirrors have already picked up the packages and allow installation even after primary registry removal. No GHSA or OSV advisories were issued because npm\'s removal speed precluded the advisory pipeline. Any developer tooling configured to use alternative registry mirrors or cached packages remains vulnerable. This persistence mechanism significantly extends the attack window.',
+       details:[{k:'npm response',v:'Rapid yank — no GHSA/OSV advisory issued'},{k:'Active mirrors',v:'Chinese npm mirrors + European CDN mirrors'},{k:'Risk window',v:'Installation via mirrors possible after npm removal'},{k:'Advisory gap',v:'No CVE or OSV record — relies on direct npm action only'}],
+       iocs:[],mitre:'T1608.001 — Upload Malware\nT1584 — Compromise Infrastructure'},
+
+      {id:'dropper', label:'postinstall.mjs',          sub:'OS detect · binary resolve · symlink',   phase:'exec',    col:2, row:1,
+       title:'postinstall.mjs — Automatic Binary Deployer',
+       desc:'Every package fires "bun ./postinstall.mjs || node ./postinstall.mjs" on npm install. The script uses Node.js os module to detect OS and architecture, locates the matching stardrop-<platform>-<arch> optional dependency in node_modules, creates a PATH symlink for binary accessibility, and outputs legitimate-sounding terminal messages to avoid suspicion. Falls back from Bun to Node.js. Designed to fail silently to avoid triggering install-time security checks.',
+       details:[{k:'Trigger',v:'"postinstall": "bun ./postinstall.mjs || node ./postinstall.mjs"'},{k:'OS detection',v:'Node.js os module — platform + architecture detection'},{k:'Binary resolve',v:'Locates stardrop-<platform>-<arch> in node_modules'},{k:'Stealth',v:'Legitimate-looking output · silent failure on error'}],
+       iocs:['postinstall.mjs','bin/stardrop'],mitre:'T1059.007 — JavaScript\nT1106 — Native API'},
+
+      {id:'binary',  label:'Platform Binaries ×11',   sub:'50–153MB · Linux / macOS / Windows',     phase:'weapon',  col:3, row:0,
+       title:'Platform-Specific Binary Payloads — 11 Variants',
+       desc:'Optional npm dependencies deliver native binaries: stardrop-linux-x64 (144MB), stardrop-darwin-arm64 (99MB), stardrop-windows-x64 (153MB), plus ARM/musl/baseline variants covering all major platforms. The large binary size is intentional — mimics legitimate runtime bundle sizes. Binaries are infostealers targeting cloud and AI credentials, with internal references to AWS EC2 metadata endpoint (169.254.169.254), Cloudflare R2 storage, and cryptographic key handling routines.',
+       details:[{k:'Linux x64',v:'stardrop-linux-x64-1.1.47.tgz · 144MB · SHA-256: 18e8742f…'},{k:'macOS arm64',v:'stardrop-darwin-arm64-1.1.49.tgz · 99MB · SHA-256: 646f3904…'},{k:'Windows x64',v:'stardrop-windows-x64-1.1.47.tgz · 153MB · SHA-256: f2248973…'},{k:'Coverage',v:'Linux (x64/arm64/musl) · macOS (x64/arm64) · Windows (x64) + baseline variants'}],
+       iocs:['stardrop-linux-x64','stardrop-darwin-arm64','stardrop-windows-x64'],mitre:'T1027 — Obfuscated Files\nT1129 — Shared Modules'},
+
+      {id:'lure',    label:'AI Coding Agent Lure',    sub:'fake setup UI · prompts API keys',        phase:'acccomp', col:3, row:2,
+       title:'Social Engineering — Fake "Stardrop AI" Setup UI',
+       desc:'The binary presents a convincing terminal UI impersonating an AI coding agent named "Stardrop". It prompts the user for OpenAI or Anthropic API keys under the guise of initial tool setup. This is the primary social engineering vector — developers installing what they believe is a legitimate AI coding assistant willingly provide high-value credentials. The background infostealer process has already started harvesting credentials before the user finishes the UI flow.',
+       details:[{k:'UI deception',v:'Terminal window presenting as "Stardrop AI" coding agent setup'},{k:'Prompted creds',v:'OpenAI API key · Anthropic API key · user account info'},{k:'Timing',v:'Background harvest starts immediately; UI runs simultaneously'},{k:'Target profile',v:'AI-heavy developers · "vibe coding" workflow users'}],
+       iocs:[],mitre:'T1204 — User Execution\nT1056 — Input Capture'},
+
+      {id:'harvest', label:'Cloud + AI Infostealer',  sub:'auth.json · AWS IMDS · API keys',         phase:'harvest', col:4, row:0,
+       title:'Infostealer — Cloud and AI Credential Harvest',
+       desc:'Focused on cloud and AI credentials. macOS payload shows the most complete infostealer behavior and is assessed as the primary target platform. Harvests: ~/.local/share/stardrop/auth.json (AI tool auth tokens), ~/.local/share/stardrop/registration.json (account data), AWS EC2 IMDS endpoint (169.254.169.254) for IAM credentials, API keys from env vars and config files. Windows payload additionally downloads a DLL to %TEMP%\\.79f7f37b7f7bfff1-00000000.dll for secondary-stage execution.',
+       details:[{k:'Primary target',v:'macOS — most complete infostealer behavior'},{k:'Harvested',v:'~/.local/share/stardrop/auth.json · registration.json'},{k:'Cloud',v:'AWS EC2 IMDS 169.254.169.254 — IAM role credential theft'},{k:'Windows extra',v:'Downloads DLL → %TEMP%\\.79f7f37b7f7bfff1-00000000.dll'}],
+       iocs:['~/.local/share/stardrop/auth.json','~/.local/share/stardrop/registration.json','%TEMP%\\.79f7f37b7f7bfff1-00000000.dll'],mitre:'T1552 — Unsecured Credentials\nT1083 — File and Directory Discovery'},
+
+      {id:'persist', label:'GitHub Actions Injection', sub:'.github/workflows/stardrop.yml',         phase:'persist', col:4, row:2,
+       title:'Persistence — GitHub Actions Workflow Injection',
+       desc:'The malware injects a GitHub Actions workflow at .github/workflows/stardrop.yml, enabling persistent access to CI/CD pipeline secrets: GITHUB_TOKEN, cloud provider credentials stored as Actions secrets, and any secrets passed through the build pipeline. The STARDROP_BIN_PATH environment variable acts as a binary override mechanism for payload updates. The workflow name "stardrop" is designed to appear legitimate in repos of developers who believe they installed a real AI coding tool.',
+       details:[{k:'Injected file',v:'.github/workflows/stardrop.yml'},{k:'Access gained',v:'CI/CD secrets · GITHUB_TOKEN · cloud provider keys'},{k:'Update mechanism',v:'STARDROP_BIN_PATH env var for binary override'},{k:'Camouflage',v:'Workflow named "stardrop" appears legit for targeted victims'}],
+       iocs:['.github/workflows/stardrop.yml','STARDROP_BIN_PATH'],mitre:'T1053.005 — Scheduled Task/Job\nT1552.001 — Credentials in Files'},
+
+      {id:'c2',      label:'stardrop.dev / R2 / AppRunner',sub:'Cloudflare R2 · AWS App Runner',     phase:'c2',      col:5, row:1,
+       title:'C2 — Cloudflare R2 + AWS App Runner Exfiltration',
+       desc:'Harvested credentials exfiltrate to Cloudflare R2 object storage (referenced in binary internals) and an AWS App Runner serverless endpoint (p9ia72yajp.us-east-1.awsapprunner.com). The stardrop.dev domain is the campaign\'s primary C2. AWS App Runner provides auto-scaling HTTPS endpoints that blend with legitimate cloud API traffic — difficult to block without disrupting genuine AWS service calls. Cloudflare R2 is used for bulk credential storage.',
+       details:[{k:'Primary domain',v:'stardrop[.]dev'},{k:'AWS endpoint',v:'p9ia72yajp.us-east-1.awsapprunner[.]com'},{k:'Storage',v:'Cloudflare R2 object storage (binary internal references)'},{k:'IMDS query',v:'169.254.169.254 — EC2 metadata for IAM role credentials'}],
+       iocs:['stardrop[.]dev','p9ia72yajp.us-east-1.awsapprunner[.]com'],mitre:'T1567 — Exfil to Cloud Storage\nT1041 — Exfiltration over C2'},
+    ],
+    edges: [
+      {from:'actor',   to:'pkgs',    label:'publishes'},
+      {from:'actor',   to:'mirror',  label:'CDN survives'},
+      {from:'pkgs',    to:'dropper', label:'postinstall'},
+      {from:'mirror',  to:'dropper', label:'postinstall'},
+      {from:'dropper', to:'binary',  label:'installs'},
+      {from:'dropper', to:'lure',    label:'presents UI'},
+      {from:'binary',  to:'harvest', label:'harvests'},
+      {from:'binary',  to:'persist', label:'injects'},
+      {from:'harvest', to:'c2',      label:'exfiltrates'},
+      {from:'persist', to:'c2',      label:'exfiltrates'},
+    ],
+    timeline: [
+      {date:'Apr 9, 2026',  wave:1, text:'<strong>Stardrop campaign begins</strong> — first malicious npm packages identified by OpenSourceMalware; rate of 40+ packages/day established'},
+      {date:'Apr 9, 2026',  wave:1, text:'VC firm brand-squatting packages: <strong>bessemer-vc, khosla-vc, a16z, andreessen, dragonfly-vc, founders-fund, ycombinator</strong>'},
+      {date:'Apr 9, 2026',  wave:1, text:'AI coding tool impersonation: <strong>huggingface-cli, codeium, cursor-ai, windsurf-ai, coderabbit-ai, tabnine-ai, starcoder, supermaven</strong>'},
+      {date:'Apr 9–14',     wave:1, text:'Luxury brand packages: <strong>givenchy, versace, lamborghini, louisvuitton, northface, valentino, patagonia, reebok</strong>'},
+      {date:'Apr 9–14',     wave:2, text:'npm rapidly yanks packages — <strong>no GHSA or OSV advisories issued</strong>; Chinese + European CDN mirrors retain packages for continued installation'},
+      {date:'Apr 9–14',     wave:2, text:'Binary analysis: macOS payload confirmed as <strong>primary target</strong> with most complete infostealer behavior; Windows drops extra DLL'},
+      {date:'Apr 14, 2026', wave:2, text:'OpenSourceMalware publishes <strong>full Stardrop report</strong> with IOC list (200+ packages), binary hashes, and C2 infrastructure'},
+      {date:'Apr 14, 2026', wave:2, text:'C2 infrastructure identified: <strong>stardrop.dev</strong> · AWS App Runner endpoint · Cloudflare R2 storage exfiltration'},
+      {date:'Ongoing',      wave:3, text:'Campaign <strong>actively ongoing</strong> as of Apr 14, 2026 — 200+ packages total, 40+/day rate, attribution unconfirmed'},
+    ],
+    iocs: {
+      domains: [
+        {val:'stardrop[.]dev',                           badge:'c2',         note:'Primary C2 domain for Stardrop campaign'},
+        {val:'p9ia72yajp.us-east-1.awsapprunner[.]com', badge:'c2',         note:'AWS App Runner exfil endpoint · serverless HTTPS · blends with legitimate cloud traffic'},
+      ],
+      ips: [
+        {val:'169.254.169.254', badge:'c2', note:'AWS EC2 IMDS — targeted for IAM role credential theft from cloud-hosted developer environments'},
+      ],
+      files: [
+        {val:'postinstall.mjs',                           badge:'dropper',    note:'Fires on npm install · OS/arch detection · binary resolution · PATH symlink creation'},
+        {val:'bin/stardrop',                              badge:'dropper',    note:'JavaScript wrapper for binary execution · present in all 200+ dropper packages'},
+        {val:'~/.local/share/stardrop/auth.json',         badge:'exfil',      note:'Primary credential store · AI tool auth tokens · harvested by infostealer'},
+        {val:'~/.local/share/stardrop/registration.json', badge:'exfil',      note:'Account registration data harvested alongside auth.json'},
+        {val:'%TEMP%\\.79f7f37b7f7bfff1-00000000.dll',   badge:'payload',    note:'Windows-only DLL · downloaded and dropped by Windows binary payload'},
+        {val:'.github/workflows/stardrop.yml',            badge:'persistence',note:'GitHub Actions workflow injection · persistent CI/CD secret and GITHUB_TOKEN access'},
+        {val:'STARDROP_BIN_PATH',                         badge:'persistence',note:'Env var used for binary override / payload update mechanism'},
+      ],
+      packages: [
+        {val:'huggingface-cli · codeium · cursor-ai · windsurf-ai', badge:'worm',   note:'AI tool impersonation · ver: 0.0.0-dev-202603XXXXXX · SHA-256: d780fe3b…'},
+        {val:'bessemer-vc · khosla-vc · a16z · andreessen · founders-fund', badge:'worm', note:'VC firm brand-squatting · 40+ VC-named packages published'},
+        {val:'givenchy · versace · lamborghini · louisvuitton · patagonia', badge:'worm', note:'Luxury brand brand-squatting'},
+        {val:'stardrop-linux-x64 v1.1.47',               badge:'payload',    note:'Linux x64 infostealer binary · 144MB uncompressed · SHA-256: 18e8742f…'},
+        {val:'stardrop-darwin-arm64 v1.1.49',            badge:'payload',    note:'macOS arm64 · 99MB · primary target platform · SHA-256: 646f3904…'},
+        {val:'stardrop-windows-x64 v1.1.47',             badge:'payload',    note:'Windows x64 · 153MB · drops DLL to %TEMP% · SHA-256: f2248973…'},
+      ],
+      k8s: [
+        {val:'N/A — targets developer workstations', badge:'payload', note:'Check: postinstall.mjs in node_modules, ~/.local/share/stardrop/ on developer machines, .github/workflows/stardrop.yml in repositories.'},
+      ],
+    },
+    refs: [
+      {source:'OpenSourceMalware', cred:'confirmed', title:'Stardrop Supply Chain Attack Targets VC Firms, Luxury Brands, AI Companies', url:'https://opensourcemalware.com/blog/stardrop-attack', note:'Primary report · full IOC list (200+ packages) · binary analysis · C2 infrastructure · author: @6mile'},
+    ],
+  },
+
   shaihulud: {
     meta: {
       badgeClass: 'badge-worm',
@@ -666,8 +802,8 @@ const INCIDENTS = {
 /* ============================================================
    STATE
    ============================================================ */
-const INCIDENT_ORDER = ['axios', 'teampcap', 'shaihulud'];
-let currentId = 'axios';
+const INCIDENT_ORDER = ['stardrop', 'axios', 'teampcap', 'shaihulud'];
+let currentId = 'stardrop';
 const NODE_W = 168, NODE_H = 58;
 const COL_W = 198, ROW_H = 130, PAD_L = 14, PAD_T = 46;
 
